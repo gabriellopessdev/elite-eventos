@@ -11,6 +11,25 @@ jobs:
     defaults:
       run:
         working-directory: api
+    env:
+      DATABASE_URL: postgres://elite:elite@localhost:5432/elite_eventos
+      JWT_SECRET: test-jwt-secret-elite-eventos
+      JWT_TTL: 15m
+      JWT_REFRESH_TTL: 7d
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: elite
+          POSTGRES_PASSWORD: elite
+          POSTGRES_DB: elite_eventos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U elite -d elite_eventos"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,6 +41,7 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
+      - run: npx prisma migrate deploy
       - run: npm test
 
   web:

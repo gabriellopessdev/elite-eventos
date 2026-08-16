@@ -38,14 +38,28 @@ cd api && npm run lint && npm run format:check && npm test
 cd web && npm run lint && npm run format:check && npm test
 ```
 
-## Dados de teste (seed — próximas fatias)
+## Dados de teste (seed)
 
-| Papel | Uso |
-|-------|-----|
-| 1 organizador | cria/gerencia eventos |
-| 2 clientes | reserva + pagamento |
-| 1 portaria | valida QR |
-| ≥1 evento | mapa com assentos livres |
+| Email | Senha | Papel |
+|-------|-------|-------|
+| `org@elite.local` | `org12345` | ORGANIZER |
+| `cliente1@elite.local` | `cli12345` | CUSTOMER |
+| `cliente2@elite.local` | `cli12345` | CUSTOMER |
+| `portaria@elite.local` | `door12345` | DOOR |
+
+```bash
+cd api
+cp .env.example .env   # se ainda não tiver
+docker compose up -d   # na raiz do repo
+npm run db:migrate
+npm run db:seed
+```
+
+Login: `POST /auth/login` → `{ accessToken, refreshToken, user }`.  
+Refresh: `POST /auth/refresh` `{ "refreshToken" }` → novo par (rotação).  
+Logout: `POST /auth/logout` `{ "refreshToken" }` → 204.  
+Perfil: `GET /auth/me` com `Authorization: Bearer …`.
+
 
 ## Uso de IA
 

@@ -5,7 +5,7 @@ Uma linha = uma entrega. **Fluxo vertical antes dos opcionais.**
 | # | Fatia | Status | Done quando… |
 |---|-------|--------|--------------|
 | 0 | Bootstrap api+web · lint · prettier · testes health · CI · Compose | ✅ | pipeline verde local |
-| 1 | Auth 3 papéis + seed users | ⬜ | login organizer/customer/door |
+| 1 | Auth 3 papéis + seed users | ✅ | login organizer/customer/door |
 | 2 | TMDb + criar/listar eventos (org) | ⬜ | evento publicado com grade |
 | 3 | Mapa assentos + hold TTL 10 min + lock atômico | ⬜ | double-sell impossível |
 | 4 | Pagamento simulado ok/recusa → ingresso + QR HMAC | ⬜ | meus ingressos |
