@@ -35,7 +35,10 @@ stateDiagram-v2
 **Decisão:** TMDb para filmes/shows em cartaz; Ticketmaster fica fora do MVP.  
 **Consequências:** precisa `TMDB_API_KEY` no `.env`.
 
-## ADR-005 — UI responsiva mobile + desktop desde o dia 1
+## ADR-006 — Auth JWT + refresh rotativo (como Linky)
 
 **Status:** accepted  
-**Decisão:** mobile-first com breakpoints desktop no mesmo trabalho; anti AI-slop (tipografia/cores próprias).
+**Contexto:** 3 papéis; desafio pede auth sólida; já validamos o padrão no Linky.  
+**Decisão:** access JWT curto (~15 min) com claim `role`; refresh **opaco**, hash no DB, **rotação** a cada uso; reuse de refresh revogado → revoga a família; logout revoga refresh.  
+**Seed:** `org@elite.local`, `cliente1@` / `cliente2@`, `portaria@elite.local`.  
+**Alternativas:** só access longo (pior se vazar).
