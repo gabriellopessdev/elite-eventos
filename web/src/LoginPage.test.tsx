@@ -22,17 +22,34 @@ function renderAt(path: string) {
   );
 }
 
+function stubApi(loginBody: object = orgLogin, loginOk = true) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(async (input: RequestInfo, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? 'GET').toUpperCase();
+      if (url.includes('/auth/login') && method === 'POST') {
+        return {
+          ok: loginOk,
+          status: loginOk ? 200 : 401,
+          json: async () => loginBody,
+        };
+      }
+      if (url.includes('/events')) {
+        return { ok: true, json: async () => ({ events: [] }) };
+      }
+      if (url.includes('/auth/logout')) {
+        return { ok: true, status: 204 };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    }),
+  );
+}
+
 describe('login', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => orgLogin,
-      }),
-    );
+    stubApi();
   });
 
   afterEach(() => {
@@ -73,14 +90,7 @@ describe('login', () => {
   });
 
   it('credencial inválida mostra alerta e não cria sessão', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        json: async () => ({ message: 'Invalid credentials' }),
-      }),
-    );
+    stubApi({ message: 'Invalid credentials' }, false);
 
     renderAt('/login');
     fireEvent.change(screen.getByLabelText('E-mail'), {
@@ -96,18 +106,7 @@ describe('login', () => {
   });
 
   it('sair limpa a sessão no header', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => orgLogin,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 204,
-      });
-    vi.stubGlobal('fetch', fetchMock);
+    stubApi();
 
     renderAt('/login');
     fireEvent.click(screen.getByRole('button', { name: 'Organizador' }));
