@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { useAuth } from './auth/useAuth';
 import { ROLE_LABEL } from './auth/auth';
@@ -12,23 +12,31 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 function NavItems() {
+  const { session } = useAuth();
+
   return (
     <>
       <NavLink className={navClass} to="/events">
         Eventos
       </NavLink>
-      <NavLink className={navClass} to="/tickets">
-        Ingressos
-      </NavLink>
-      <NavLink className={navClass} to="/door">
-        Portaria
-      </NavLink>
+      {session ? (
+        <>
+          <NavLink className={navClass} to="/tickets">
+            Ingressos
+          </NavLink>
+          <NavLink className={navClass} to="/door">
+            Portaria
+          </NavLink>
+        </>
+      ) : null}
     </>
   );
 }
 
 function Shell() {
   const { session, logout } = useAuth();
+  const { pathname } = useLocation();
+  const flushHome = pathname === '/';
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -73,7 +81,13 @@ function Shell() {
         ) : null}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 pb-24 md:px-6 md:py-10 md:pb-12">
+      <main
+        className={
+          flushHome
+            ? 'w-full flex-1 pb-24 md:pb-0'
+            : 'mx-auto w-full max-w-6xl flex-1 px-4 py-5 pb-24 md:px-6 md:py-10 md:pb-12'
+        }
+      >
         <Outlet />
       </main>
 
