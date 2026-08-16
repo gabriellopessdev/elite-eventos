@@ -6,7 +6,10 @@ import { authRoutes } from './auth/routes.js';
 function corsOrigin() {
   const raw = process.env.WEB_ORIGIN;
   if (!raw) return true;
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export function buildApp() {
