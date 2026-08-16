@@ -5,6 +5,10 @@ import { prisma } from '../db.js';
 export const SEAT_ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const;
 export const SEATS_PER_ROW = 10;
 
+const seatInclude = {
+  seats: { orderBy: [{ row: 'asc' as const }, { number: 'asc' as const }] },
+};
+
 export type CreateEventInput = {
   tmdbId: number;
   title: string;
@@ -45,7 +49,22 @@ export async function createEvent(input: CreateEventInput) {
 
     return tx.event.findUniqueOrThrow({
       where: { id: event.id },
-      include: { seats: { orderBy: [{ row: 'asc' }, { number: 'asc' }] } },
+      include: seatInclude,
     });
+  });
+}
+
+/** Catalog of sessions — no seat rows. The map is getEvent. */
+export async function listEvents() {
+  return prisma.event.findMany({
+    orderBy: { startsAt: 'asc' },
+  });
+}
+
+/** One session with its seat grid. Missing id → null (route maps 404). */
+export async function getEvent(id: string) {
+  return prisma.event.findUnique({
+    where: { id },
+    include: seatInclude,
   });
 }

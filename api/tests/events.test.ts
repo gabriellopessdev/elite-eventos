@@ -4,7 +4,7 @@ import { Role, SeatStatus } from '@prisma/client';
 import { buildApp } from '../src/app.js';
 import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/auth/password.js';
-import { SEAT_ROWS, SEATS_PER_ROW } from '../src/events/create.js';
+import { SEAT_ROWS, SEATS_PER_ROW } from '../src/events/repo.js';
 
 process.env.JWT_SECRET ??= 'test-jwt-secret-elite-eventos';
 

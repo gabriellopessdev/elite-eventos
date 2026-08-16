@@ -1,8 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { Role } from '@prisma/client';
 import { requireRole } from '../auth/require-auth.js';
-import { createEvent } from './create.js';
-import { listEvents } from './list.js';
+import { createEvent, listEvents } from './repo.js';
 
 type CreateBody = {
   tmdbId?: unknown;
