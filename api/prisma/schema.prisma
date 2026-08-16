@@ -21,6 +21,8 @@ model User {
   role          Role
   createdAt     DateTime       @default(now()) @map("created_at")
   refreshTokens RefreshToken[]
+  events        Event[]
+  heldSeats     Seat[]
 
   @@map("users")
 }
@@ -40,4 +42,47 @@ model RefreshToken {
   @@index([tokenHash])
   @@index([familyId])
   @@map("refresh_tokens")
+}
+
+// TMDb é catálogo; Event é a sessão vendável (ADR-004). title/posterPath = snapshot.
+enum SeatStatus {
+  AVAILABLE
+  HELD
+  SOLD
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  tmdbId      Int      @map("tmdb_id")
+  title       String
+  posterPath  String?  @map("poster_path")
+  startsAt    DateTime @map("starts_at")
+  priceCents  Int      @map("price_cents")
+  organizerId String   @map("organizer_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  organizer User   @relation(fields: [organizerId], references: [id], onDelete: Restrict)
+  seats     Seat[]
+
+  @@index([startsAt])
+  @@index([organizerId])
+  @@map("events")
+}
+
+// Grade nasce no create do evento, todos AVAILABLE. Hold/TTL (heldBy, heldUntil) é a fatia 3.
+model Seat {
+  id        String     @id @default(uuid())
+  eventId   String     @map("event_id")
+  row       String
+  number    Int
+  status    SeatStatus @default(AVAILABLE)
+  heldById  String?    @map("held_by_id")
+  heldUntil DateTime?  @map("held_until")
+
+  event  Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  heldBy User? @relation(fields: [heldById], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, row, number])
+  @@index([eventId, status])
+  @@map("seats")
 }
