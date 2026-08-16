@@ -64,6 +64,10 @@ async function getEvents() {
   return app.inject({ method: 'GET', url: '/events' });
 }
 
+async function getEventById(id: string) {
+  return app.inject({ method: 'GET', url: `/events/${id}` });
+}
+
 describe('events API', () => {
   beforeAll(async () => {
     for (const row of accounts) {
@@ -195,6 +199,33 @@ describe('events API', () => {
         .events.filter((event: { organizerId: string }) => event.organizerId === orgId);
 
       expect(ours.map((event: { title: string }) => event.title)).toEqual(['Antes', 'Depois']);
+    });
+  });
+
+  describe('GET /events/:id', () => {
+    test('id desconhecido → 404', async () => {
+      const res = await getEventById('00000000-0000-0000-0000-000000000000');
+      expect(res.statusCode).toBe(404);
+    });
+
+    test('sem token → 200 com grade AVAILABLE', async () => {
+      const created = await postEvent(orgToken, sessionBody);
+      const id = created.json().id as string;
+
+      const res = await getEventById(id);
+      expect(res.statusCode).toBe(200);
+
+      const body = res.json();
+      expect(body).toMatchObject({
+        id,
+        tmdbId: 438631,
+        title: 'Duna',
+        organizerId: orgId,
+      });
+      expect(body.seats).toHaveLength(SEAT_ROWS.length * SEATS_PER_ROW);
+      expect(
+        body.seats.every((seat: { status: string }) => seat.status === SeatStatus.AVAILABLE),
+      ).toBe(true);
     });
   });
 });
