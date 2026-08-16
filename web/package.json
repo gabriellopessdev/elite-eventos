@@ -15,6 +15,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
