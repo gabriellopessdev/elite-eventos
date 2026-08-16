@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { Role } from '@prisma/client';
 import { requireRole } from '../auth/require-auth.js';
 import { createEvent } from './create.js';
+import { listEvents } from './list.js';
 
 type CreateBody = {
   tmdbId?: unknown;
@@ -44,6 +45,11 @@ function parseCreateBody(body: CreateBody | null) {
 }
 
 export async function eventRoutes(app: FastifyInstance) {
+  app.get('/events', async () => {
+    const events = await listEvents();
+    return { events };
+  });
+
   app.post('/events', { preHandler: requireRole(Role.ORGANIZER) }, async (request, reply) => {
     const parsed = parseCreateBody(request.body as CreateBody);
     if ('error' in parsed) {
