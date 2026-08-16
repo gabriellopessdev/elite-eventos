@@ -4,6 +4,7 @@ import { useAuth } from './auth/useAuth';
 import { ROLE_LABEL } from './auth/auth';
 import { LoginPage } from './LoginPage';
 import { Home } from './Home';
+import { EventsPage } from './events/EventsPage';
 import { btn, btnGhost, island } from './ui';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -36,13 +37,13 @@ function NavItems() {
 function Shell() {
   const { session, logout } = useAuth();
   const { pathname } = useLocation();
-  const flushHome = pathname === '/';
+  const flushCinema = pathname === '/' || pathname === '/events';
 
   return (
-    <div className={flushHome ? 'relative min-h-dvh' : 'flex min-h-dvh flex-col'}>
+    <div className={flushCinema ? 'relative min-h-dvh' : 'flex min-h-dvh flex-col'}>
       <header
         className={
-          flushHome
+          flushCinema
             ? 'absolute inset-x-0 top-0 z-20 hidden p-3 md:block md:px-6 md:pt-4'
             : 'sticky top-0 z-10 hidden p-3 md:block md:px-6 md:pt-4'
         }
@@ -78,20 +79,20 @@ function Shell() {
 
       <header
         className={
-          flushHome
+          flushCinema
             ? 'absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 md:hidden'
             : 'flex items-center justify-between px-4 py-3 md:hidden'
         }
       >
         <Link
           to="/"
-          className={`text-lg font-extrabold tracking-tight ${flushHome ? 'text-white' : 'text-brand'}`}
+          className={`text-lg font-extrabold tracking-tight ${flushCinema ? 'text-white' : 'text-brand'}`}
         >
           Elite Eventos
         </Link>
         {session ? (
           <span
-            className={`truncate text-xs font-semibold ${flushHome ? 'text-white/80' : 'text-muted'}`}
+            className={`truncate text-xs font-semibold ${flushCinema ? 'text-white/80' : 'text-muted'}`}
           >
             {session.user.name} · {ROLE_LABEL[session.user.role]}
           </span>
@@ -100,7 +101,7 @@ function Shell() {
 
       <main
         className={
-          flushHome
+          flushCinema
             ? 'min-h-dvh w-full pb-24 md:pb-0'
             : 'mx-auto w-full max-w-6xl flex-1 px-4 py-5 pb-24 md:px-6 md:py-10 md:pb-12'
         }
@@ -146,7 +147,8 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<Shell />}>
         <Route path="/" element={<Home />} />
-        <Route path="/events" element={<Placeholder title="Eventos" />} />
+        <Route path="/events" element={<EventsPage />} />
+        <Route path="/events/:id" element={<Placeholder title="Sessão" />} />
         <Route path="/tickets" element={<Placeholder title="Meus ingressos" />} />
         <Route path="/door" element={<Placeholder title="Portaria" />} />
       </Route>
