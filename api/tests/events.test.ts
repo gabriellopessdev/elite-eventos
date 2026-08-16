@@ -1,0 +1,148 @@
+import { afterAll, beforeAll, beforeEach, expect, test } from 'vitest';
+import type { FastifyInstance } from 'fastify';
+import { Role, SeatStatus } from '@prisma/client';
+import { buildApp } from '../src/app.js';
+import { prisma } from '../src/db.js';
+import { hashPassword } from '../src/auth/password.js';
+import { SEAT_ROWS, SEATS_PER_ROW } from '../src/events/create.js';
+
+process.env.JWT_SECRET ??= 'test-jwt-secret-elite-eventos';
+
+const accounts = [
+  {
+    email: 'org@elite.local',
+    password: 'org12345',
+    name: 'Organizador Demo',
+    role: Role.ORGANIZER,
+  },
+  {
+    email: 'cliente1@elite.local',
+    password: 'cli12345',
+    name: 'Cliente Um',
+    role: Role.CUSTOMER,
+  },
+  {
+    email: 'portaria@elite.local',
+    password: 'door12345',
+    name: 'Portaria Demo',
+    role: Role.DOOR,
+  },
+] as const;
+
+const sessionBody = {
+  tmdbId: 438631,
+  title: 'Duna',
+  posterPath: '/dune.jpg',
+  startsAt: '2026-10-01T20:00:00.000Z',
+  priceCents: 3500,
+};
+
+let app: FastifyInstance;
+let orgToken: string;
+let orgId: string;
+let customerToken: string;
+let doorToken: string;
+
+async function login(email: string, password: string) {
+  return app.inject({
+    method: 'POST',
+    url: '/auth/login',
+    payload: { email, password },
+  });
+}
+
+async function postEvent(token: string | undefined, payload: unknown) {
+  return app.inject({
+    method: 'POST',
+    url: '/events',
+    headers: token ? { authorization: `Bearer ${token}` } : undefined,
+    payload,
+  });
+}
+
+beforeAll(async () => {
+  for (const row of accounts) {
+    const passwordHash = await hashPassword(row.password);
+    await prisma.user.upsert({
+      where: { email: row.email },
+      create: {
+        email: row.email,
+        passwordHash,
+        name: row.name,
+        role: row.role,
+      },
+      update: { passwordHash, name: row.name, role: row.role },
+    });
+  }
+
+  app = buildApp();
+  await app.ready();
+
+  const org = await login('org@elite.local', 'org12345');
+  orgToken = org.json().accessToken as string;
+  orgId = org.json().user.id as string;
+  customerToken = (await login('cliente1@elite.local', 'cli12345')).json().accessToken as string;
+  doorToken = (await login('portaria@elite.local', 'door12345')).json().accessToken as string;
+});
+
+beforeEach(async () => {
+  await prisma.event.deleteMany({ where: { organizerId: orgId } });
+});
+
+afterAll(async () => {
+  await prisma.event.deleteMany({ where: { organizerId: orgId } });
+  await app.close();
+  await prisma.$disconnect();
+});
+
+test('POST /events sem token → 401', async () => {
+  const res = await postEvent(undefined, sessionBody);
+  expect(res.statusCode).toBe(401);
+});
+
+test.each([
+  ['CUSTOMER', () => customerToken],
+  ['DOOR', () => doorToken],
+] as const)('POST /events como %s → 403', async (_role, token) => {
+  const res = await postEvent(token(), sessionBody);
+  expect(res.statusCode).toBe(403);
+});
+
+test('POST /events sem title → 400', async () => {
+  const res = await postEvent(orgToken, { ...sessionBody, title: '' });
+  expect(res.statusCode).toBe(400);
+});
+
+test('POST /events com priceCents inválido → 400', async () => {
+  const res = await postEvent(orgToken, { ...sessionBody, priceCents: 0 });
+  expect(res.statusCode).toBe(400);
+});
+
+test('POST /events com startsAt inválido → 400', async () => {
+  const res = await postEvent(orgToken, { ...sessionBody, startsAt: 'amanhã' });
+  expect(res.statusCode).toBe(400);
+});
+
+test('POST /events como ORGANIZER → 201 com grade AVAILABLE', async () => {
+  const res = await postEvent(orgToken, sessionBody);
+  expect(res.statusCode).toBe(201);
+
+  const body = res.json();
+  expect(body).toMatchObject({
+    tmdbId: 438631,
+    title: 'Duna',
+    posterPath: '/dune.jpg',
+    priceCents: 3500,
+    organizerId: orgId,
+  });
+  expect(body.seats).toHaveLength(SEAT_ROWS.length * SEATS_PER_ROW);
+  expect(body.seats.every((seat: { status: string }) => seat.status === SeatStatus.AVAILABLE)).toBe(
+    true,
+  );
+  expect(body.seats).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ row: 'A', number: 1, status: SeatStatus.AVAILABLE }),
+      expect.objectContaining({ row: 'H', number: 10, status: SeatStatus.AVAILABLE }),
+    ]),
+  );
+});
