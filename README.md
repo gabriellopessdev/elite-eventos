@@ -19,7 +19,7 @@ Organizador publica eventos a partir do **TMDb**; cliente escolhe **assento** (h
 ## Rodar local
 
 ```bash
-# requisitos: Node 20+, Docker (Postgres nas próximas fatias)
+# requisitos: Node 22+, Docker (Postgres)
 cp api/.env.example api/.env
 
 docker compose up -d
