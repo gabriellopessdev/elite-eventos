@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { Role } from '@prisma/client';
 import { requireRole } from '../auth/require-auth.js';
-import { createEvent, listEvents } from './repo.js';
+import { createEvent, getEvent, listEvents } from './repo.js';
 
 type CreateBody = {
   tmdbId?: unknown;
@@ -47,6 +47,15 @@ export async function eventRoutes(app: FastifyInstance) {
   app.get('/events', async () => {
     const events = await listEvents();
     return { events };
+  });
+
+  app.get('/events/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const event = await getEvent(id);
+    if (!event) {
+      return reply.code(404).send({ message: 'Event not found' });
+    }
+    return event;
   });
 
   app.post('/events', { preHandler: requireRole(Role.ORGANIZER) }, async (request, reply) => {
