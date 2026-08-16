@@ -11,6 +11,9 @@ describe('App shell', () => {
       </MemoryRouter>,
     );
     expect(screen.getAllByText('Elite Eventos').length).toBeGreaterThan(0);
-    expect(screen.getByText('Ver eventos')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'O cartaz abre em breve' })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: /Entrar/ }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('link', { name: 'Ingressos' })).toHaveLength(0);
+    expect(screen.queryAllByRole('link', { name: 'Portaria' })).toHaveLength(0);
   });
 });
