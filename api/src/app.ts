@@ -2,6 +2,7 @@ import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { authRoutes } from './auth/routes.js';
+import { movieRoutes } from './movies/routes.js';
 
 function corsOrigin() {
   const raw = process.env.WEB_ORIGIN;
@@ -23,6 +24,7 @@ export function buildApp() {
   }));
 
   app.register(authRoutes);
+  app.register(movieRoutes);
 
   return app;
 }
