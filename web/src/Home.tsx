@@ -2,11 +2,11 @@ import { Link } from 'react-router-dom';
 
 export function Home() {
   return (
-    <section className="relative isolate min-h-[calc(100dvh-7.5rem)] overflow-hidden bg-[#070414] md:min-h-[calc(100dvh-5.25rem)]">
+    <section className="relative isolate min-h-dvh overflow-hidden bg-[#070414]">
       <img src="/theater-empty.png" alt="" className="absolute inset-0 size-full object-cover" />
       <div className="absolute inset-0 bg-black/35" />
 
-      <div className="relative z-10 flex min-h-[calc(100dvh-7.5rem)] items-center justify-center px-4 py-10 md:min-h-[calc(100dvh-5.25rem)] md:py-16">
+      <div className="relative z-10 flex min-h-dvh items-center justify-center px-4 pt-24 pb-28 md:pt-28 md:pb-16">
         <div
           className="flex w-full max-w-[52rem] flex-col items-center justify-center gap-8 rounded-[1.75rem] border border-[#c4b5ff] px-6 py-16 text-center md:gap-10 md:px-20 md:py-24"
           style={{

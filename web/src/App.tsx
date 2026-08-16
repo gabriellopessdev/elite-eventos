@@ -39,8 +39,14 @@ function Shell() {
   const flushHome = pathname === '/';
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 hidden p-3 md:block md:px-6 md:pt-4">
+    <div className={flushHome ? 'relative min-h-dvh' : 'flex min-h-dvh flex-col'}>
+      <header
+        className={
+          flushHome
+            ? 'absolute inset-x-0 top-0 z-20 hidden p-3 md:block md:px-6 md:pt-4'
+            : 'sticky top-0 z-10 hidden p-3 md:block md:px-6 md:pt-4'
+        }
+      >
         <div
           className={`${island} mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3`}
         >
@@ -70,12 +76,23 @@ function Shell() {
         </div>
       </header>
 
-      <header className="flex items-center justify-between px-4 py-3 md:hidden">
-        <Link to="/" className="text-lg font-extrabold tracking-tight text-brand">
+      <header
+        className={
+          flushHome
+            ? 'absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-3 md:hidden'
+            : 'flex items-center justify-between px-4 py-3 md:hidden'
+        }
+      >
+        <Link
+          to="/"
+          className={`text-lg font-extrabold tracking-tight ${flushHome ? 'text-white' : 'text-brand'}`}
+        >
           Elite Eventos
         </Link>
         {session ? (
-          <span className="truncate text-xs font-semibold text-muted">
+          <span
+            className={`truncate text-xs font-semibold ${flushHome ? 'text-white/80' : 'text-muted'}`}
+          >
             {session.user.name} · {ROLE_LABEL[session.user.role]}
           </span>
         ) : null}
@@ -84,7 +101,7 @@ function Shell() {
       <main
         className={
           flushHome
-            ? 'w-full flex-1 pb-24 md:pb-0'
+            ? 'min-h-dvh w-full pb-24 md:pb-0'
             : 'mx-auto w-full max-w-6xl flex-1 px-4 py-5 pb-24 md:px-6 md:py-10 md:pb-12'
         }
       >
