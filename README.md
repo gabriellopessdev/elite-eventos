@@ -10,7 +10,7 @@ Organizador publica eventos a partir do **TMDb**; cliente escolhe **assento** (h
 
 | Camada | Escolha |
 |--------|---------|
-| Front | React + Vite + TS · **responsivo mobile + desktop** |
+| Front | React + Vite + TS · Tailwind v4 · paleta Excalidraw · **mobile + desktop** |
 | Back | Node + Fastify + TS |
 | DB | Postgres |
 | Catálogo | TMDb |
@@ -28,8 +28,8 @@ cd web && npm install && npm run dev
 ```
 
 - API: http://localhost:3000/health  
-- Web: http://localhost:5173  
-- GraphiQL: N/A (REST)
+- Web: http://localhost:5173/login  
+- O Vite encaminha `/auth` para a API (`localhost:3000`)
 
 ### Scripts de qualidade
 
@@ -55,7 +55,8 @@ npm run db:migrate
 npm run db:seed
 ```
 
-Login: `POST /auth/login` → `{ accessToken, refreshToken, user }`.  
+Tela: http://localhost:5173/login — atalhos **preenchem** o seed; o papel vem da API.  
+API: `POST /auth/login` → `{ accessToken, refreshToken, user }`.  
 Refresh: `POST /auth/refresh` `{ "refreshToken" }` → novo par (rotação).  
 Logout: `POST /auth/logout` `{ "refreshToken" }` → 204.  
 Perfil: `GET /auth/me` com `Authorization: Bearer …`.

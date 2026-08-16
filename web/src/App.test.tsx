@@ -10,7 +10,7 @@ describe('App shell', () => {
         <App />
       </MemoryRouter>,
     );
-    expect(screen.getByText('Elite Eventos')).toBeTruthy();
+    expect(screen.getAllByText('Elite Eventos').length).toBeGreaterThan(0);
     expect(screen.getByText('Ver eventos')).toBeTruthy();
   });
 });

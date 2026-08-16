@@ -42,3 +42,10 @@ stateDiagram-v2
 **Decisão:** access JWT curto (~15 min) com claim `role`; refresh **opaco**, hash no DB, **rotação** a cada uso; reuse de refresh revogado → revoga a família; logout revoga refresh.  
 **Seed:** `org@elite.local`, `cliente1@` / `cliente2@`, `portaria@elite.local`.  
 **Alternativas:** só access longo (pior se vazar).
+
+## ADR-007 — Tailwind v4, tokens da marca
+
+**Status:** accepted  
+**Contexto:** o front ia em CSS próprio para fugir de template; a decisão do desafio é Tailwind.  
+**Decisão:** `@tailwindcss/vite` + paleta **Excalidraw** (`#6965db`, canvas `#f6f6f9`, ilhas brancas, fonte Assistant). Sem shadcn/MUI.  
+**Alternativas:** CSS puro; tema escuro verde/dourado (rejeitado).
