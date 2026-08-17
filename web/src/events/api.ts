@@ -37,3 +37,53 @@ export async function listEvents(): Promise<EventSummary[]> {
   const body = (await res.json()) as { events: EventSummary[] };
   return body.events;
 }
+
+export type MovieHit = {
+  tmdbId: number;
+  title: string;
+  posterPath: string | null;
+  releaseDate: string | null;
+};
+
+export type CreateEventInput = {
+  tmdbId: number;
+  title: string;
+  posterPath: string | null;
+  startsAt: string;
+  priceCents: number;
+};
+
+export async function searchMovies(query: string, accessToken: string): Promise<MovieHit[]> {
+  const res = await fetch(`${apiUrl('/movies/search')}?q=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new Error('Não foi possível buscar no TMDb');
+  }
+  const body = (await res.json()) as { results: MovieHit[] };
+  return body.results;
+}
+
+export async function createEvent(
+  input: CreateEventInput,
+  accessToken: string,
+): Promise<EventSummary> {
+  const res = await fetch(apiUrl('/events'), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    throw new Error('Não foi possível publicar a sessão');
+  }
+  return res.json() as Promise<EventSummary>;
+}
+
+export function reaisToCents(raw: string) {
+  const n = Number(raw.trim().replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n * 100);
+}
