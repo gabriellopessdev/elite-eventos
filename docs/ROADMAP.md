@@ -9,7 +9,7 @@ Uma linha = uma entrega. **Fluxo vertical antes dos opcionais.**
 | 2 | TMDb + criar/listar eventos (org) | ✅ | evento publicado com grade |
 | 3 | Mapa assentos + hold TTL 10 min + lock atômico | ✅ | double-sell impossível — junto com #4 em `feat/seat-hold` |
 | 4 | Pagamento simulado ok/recusa → ingresso + QR HMAC | ✅ | meus ingressos — junto com #3 em `feat/seat-hold` |
-| 5 | Portaria: câmera + digitação · válido/inválido/usado/evento errado | ⬜ | fluxo ponta a ponta |
+| 5 | Portaria: câmera + digitação · válido/inválido/usado/evento errado | ⬜ | fluxo ponta a ponta — em `feat/door` |
 | 6 | Link compartilhável do ingresso | ⬜ | abre ingresso read-only |
 | 7 | Busca/filtro · painel org · cancelamento+estoque | ⬜ | opcionais produto |
 | 8 | Tempo real no mapa (polling→WS) | ⬜ | outros veem hold |
