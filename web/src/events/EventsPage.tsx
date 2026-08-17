@@ -23,7 +23,11 @@ export function EventsPage() {
   }, []);
 
   return (
-    <CinemaStage>
+    <CinemaStage
+      contentClassName={
+        events && events.length > 0 ? 'items-start justify-center' : 'items-center justify-center'
+      }
+    >
       {error ? (
         <div className={marqueePanel} style={marqueeGlow}>
           <p className="m-0 text-base text-white" role="alert">
