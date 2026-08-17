@@ -55,11 +55,16 @@ export const skeleton =
  * importa — antes HELD e SOLD eram o mesmo #1c1048, indistinguíveis entre si e
  * quase iguais ao fundo.
  */
-export const seatBase = 'rounded-t-[7px] rounded-b-[3px] border-[1.5px] border-transparent p-0';
+/**
+ * Cada tom define a própria cor de borda: uma `border-transparent` aqui na base
+ * venceria a cor do tom na cascata do Tailwind (a ordem é a da folha, não a do
+ * atributo) e o assento reservado sumiria.
+ */
+export const seatBase = 'rounded-t-[7px] rounded-b-[3px] border-[1.5px] p-0';
 
 export const seatTone = {
-  free: 'bg-lavender hover:bg-white cursor-pointer',
-  selected: 'bg-white border-white shadow-glow -translate-y-px cursor-pointer',
-  held: 'bg-transparent border-[1.5px] border-dashed border-line-strong cursor-not-allowed',
-  sold: 'border-line cursor-not-allowed bg-[repeating-linear-gradient(45deg,var(--color-surface-top)_0_3px,var(--color-surface-high)_3px_6px)]',
+  free: 'cursor-pointer border-lavender bg-lavender hover:border-white hover:bg-white',
+  selected: 'cursor-pointer border-white bg-white shadow-glow -translate-y-px',
+  held: 'cursor-not-allowed border-dashed border-lavender/60 bg-transparent',
+  sold: 'cursor-not-allowed border-line bg-[repeating-linear-gradient(45deg,var(--color-surface-top)_0_3px,var(--color-surface-high)_3px_6px)]',
 } as const;

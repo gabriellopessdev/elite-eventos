@@ -145,7 +145,7 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
           vendido eram a mesma cor, e nenhum dos dois se distinguia do fundo. */}
       <p className="m-0 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-muted">
         <LegendKey tone={seatTone.free}>Livre</LegendKey>
-        <LegendKey tone="bg-white">Seu</LegendKey>
+        <LegendKey tone="border-white bg-white">Seu</LegendKey>
         <LegendKey tone={seatTone.held}>Reservado</LegendKey>
         <LegendKey tone={seatTone.sold}>Vendido</LegendKey>
       </p>
