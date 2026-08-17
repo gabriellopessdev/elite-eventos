@@ -104,9 +104,9 @@ describe('detalhe da sessão', () => {
     expect(screen.getByLabelText('B2 disponível')).toBeTruthy();
     expect(screen.getByLabelText('Mapa de assentos')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'A1 disponível' })).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Pagar' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByRole('button', { name: 'Reservar e pagar' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('visitante seleciona assento e Pagar vai ao login com next', async () => {
@@ -130,7 +130,7 @@ describe('detalhe da sessão', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
     expect(screen.getByLabelText('A1 selecionado')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reservar e pagar' }));
 
     expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeTruthy();
     expect(screen.getByLabelText('E-mail')).toBeTruthy();
@@ -169,7 +169,7 @@ describe('detalhe da sessão', () => {
     renderAt('/events/evt-dune');
 
     fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reservar e pagar' }));
 
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Confirmar compra' })).toBeTruthy();
@@ -228,7 +228,7 @@ describe('detalhe da sessão', () => {
     renderAt('/events/evt-dune');
 
     fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reservar e pagar' }));
     const dialog = await screen.findByRole('dialog');
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Pagar' }));
