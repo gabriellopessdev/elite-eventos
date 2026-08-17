@@ -163,11 +163,7 @@ describe('POST /events/:id/scan', () => {
   });
 
   test('missing event → 404', async () => {
-    const res = await postScan(
-      '00000000-0000-0000-0000-000000000000',
-      doorToken,
-      { code: 'any' },
-    );
+    const res = await postScan('00000000-0000-0000-0000-000000000000', doorToken, { code: 'any' });
     expect(res.statusCode).toBe(404);
     expect(res.json().message).toBe('Event not found');
   });

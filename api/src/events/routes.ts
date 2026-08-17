@@ -259,21 +259,17 @@ export async function eventRoutes(app: FastifyInstance) {
     },
   );
 
-  app.post(
-    '/events/:id/scan',
-    { preHandler: requireRole(Role.DOOR) },
-    async (request, reply) => {
-      const { code } = (request.body as { code?: unknown } | null) ?? {};
-      if (typeof code !== 'string' || code.trim() === '') {
-        return reply.code(400).send({ message: 'code is required' });
-      }
+  app.post('/events/:id/scan', { preHandler: requireRole(Role.DOOR) }, async (request, reply) => {
+    const { code } = (request.body as { code?: unknown } | null) ?? {};
+    if (typeof code !== 'string' || code.trim() === '') {
+      return reply.code(400).send({ message: 'code is required' });
+    }
 
-      const { id } = request.params as { id: string };
-      const event = await getEvent(id);
-      if (!event) {
-        return reply.code(404).send({ message: 'Event not found' });
-      }
-      return scanTicket({ eventId: id, code });
-    },
-  );
+    const { id } = request.params as { id: string };
+    const event = await getEvent(id);
+    if (!event) {
+      return reply.code(404).send({ message: 'Event not found' });
+    }
+    return scanTicket({ eventId: id, code });
+  });
 }
