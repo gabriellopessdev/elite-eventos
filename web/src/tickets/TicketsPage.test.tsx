@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 import type { Ticket } from '../events/api';
@@ -133,7 +133,7 @@ describe('TicketsPage', () => {
     expect(screen.getByRole('link', { name: 'Ver cartaz' }).getAttribute('href')).toBe('/events');
   });
 
-  it('cliente agrupa ingressos por evento com assento e status', async () => {
+  it('cliente vê resumo dobrado e abre uma sessão por vez', async () => {
     seedCustomer();
     vi.stubGlobal(
       'fetch',
@@ -146,15 +146,25 @@ describe('TicketsPage', () => {
 
     renderAt('/tickets');
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /Duna/ })).toBeTruthy();
-    });
+    const duneTrigger = await screen.findByRole('button', { name: /Duna/ });
+    const oppenTrigger = screen.getByRole('button', { name: /Oppenheimer/ });
 
-    expect(screen.getByRole('heading', { name: /Oppenheimer/ })).toBeTruthy();
+    expect(duneTrigger.getAttribute('aria-expanded')).toBe('true');
+    expect(oppenTrigger.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByText('Assento A1')).toBeTruthy();
     expect(screen.getByText('Assento A2')).toBeTruthy();
+    expect(screen.queryByText('Assento C5')).toBeNull();
+    expect(screen.getByText(/2 ingressos/)).toBeTruthy();
+    expect(screen.getByText(/1 ingresso/)).toBeTruthy();
+
+    fireEvent.click(oppenTrigger);
+
+    await waitFor(() => {
+      expect(oppenTrigger.getAttribute('aria-expanded')).toBe('true');
+    });
+    expect(duneTrigger.getAttribute('aria-expanded')).toBe('false');
     expect(screen.getByText('Assento C5')).toBeTruthy();
-    expect(screen.getAllByText('Não usado')).toHaveLength(2);
-    expect(screen.getByText('Usado')).toBeTruthy();
+    expect(screen.queryByText('Assento A1')).toBeNull();
+    expect(screen.getByText('Não usado')).toBeTruthy();
   });
 });

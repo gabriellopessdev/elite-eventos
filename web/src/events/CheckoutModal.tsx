@@ -42,11 +42,6 @@ export function CheckoutModal({
 
   useEffect(() => {
     if (!open) return;
-    expiredOnceRef.current = false;
-    setPayError(null);
-    setPaying(false);
-    setNow(Date.now());
-
     const id = window.setInterval(() => setNow(Date.now()), 250);
     return () => window.clearInterval(id);
   }, [open, heldUntil]);

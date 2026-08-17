@@ -23,8 +23,8 @@ const MAX_SEATS = 8;
 
 const seatTone: Record<Seat['status'], string> = {
   AVAILABLE: 'bg-[#c4b5ff]',
-  HELD: 'bg-white/35',
-  SOLD: 'bg-black/55',
+  HELD: 'bg-[#1c1048]',
+  SOLD: 'bg-[#1c1048]',
 };
 
 const seatLabel: Record<Seat['status'], string> = {
@@ -129,6 +129,10 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
           />
           Selecionado
         </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-3 rounded-sm bg-[#1c1048]" aria-hidden="true" />
+          Ocupado
+        </span>
       </p>
     </div>
   );
@@ -157,10 +161,6 @@ function EventSession({ id }: { id: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    setError(null);
-    setActionError(null);
-    setCheckoutOpen(false);
-    setHeldUntil(null);
 
     getEvent(id, accessToken)
       .then((next) => {
@@ -175,7 +175,7 @@ function EventSession({ id }: { id: string }) {
               next.seats.filter((s) => s.status === 'AVAILABLE').map((s) => s.id),
             );
             setSelectedIds(restored.filter((seatId) => available.has(seatId)).slice(0, MAX_SEATS));
-          } else {
+          } else if (!next.myHold) {
             setSelectedIds([]);
           }
         } else {
@@ -408,9 +408,10 @@ function EventSession({ id }: { id: string }) {
         </div>
       </article>
 
-      {heldUntil && accessToken ? (
+      {heldUntil && accessToken && checkoutOpen ? (
         <CheckoutModal
-          open={checkoutOpen}
+          key={heldUntil}
+          open
           seats={heldSeats}
           heldUntil={heldUntil}
           priceCents={event.priceCents}

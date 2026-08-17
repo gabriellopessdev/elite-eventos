@@ -1,78 +1,10 @@
 import { useEffect, useState } from 'react';
-import QRCode from 'qrcode';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { CinemaStage } from '../cinema';
-import { formatSessionWhen, listMyTickets, type Ticket } from '../events/api';
+import { listMyTickets, type Ticket } from '../events/api';
 import { btnMarquee, marqueeGlow, marqueePanel, marqueePill } from '../ui';
-
-const statusLabel: Record<Ticket['status'], string> = {
-  UNUSED: 'Não usado',
-  USED: 'Usado',
-};
-
-type TicketGroup = {
-  eventId: string;
-  title: string;
-  startsAt: string;
-  tickets: Ticket[];
-};
-
-export function groupTicketsByEvent(tickets: Ticket[]): TicketGroup[] {
-  const groups = new Map<string, TicketGroup>();
-  for (const ticket of tickets) {
-    const existing = groups.get(ticket.eventId);
-    if (existing) {
-      existing.tickets.push(ticket);
-      continue;
-    }
-    groups.set(ticket.eventId, {
-      eventId: ticket.eventId,
-      title: ticket.event?.title ?? 'Sessão',
-      startsAt: ticket.event?.startsAt ?? '',
-      tickets: [ticket],
-    });
-  }
-  return [...groups.values()];
-}
-
-function TicketQr({ code }: { code: string }) {
-  const [src, setSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    QRCode.toDataURL(code, { margin: 1, width: 168 })
-      .then((url) => {
-        if (!cancelled) setSrc(url);
-      })
-      .catch(() => {
-        if (!cancelled) setSrc(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [code]);
-
-  if (!src) {
-    return (
-      <div
-        className="size-[168px] rounded-lg bg-white/15"
-        aria-hidden="true"
-        data-testid="qr-placeholder"
-      />
-    );
-  }
-
-  return (
-    <img
-      src={src}
-      alt={`QR do ingresso ${code}`}
-      className="size-[168px] rounded-lg bg-white p-1"
-      width={168}
-      height={168}
-    />
-  );
-}
+import { TicketStubbook } from './TicketStubbook';
 
 export function TicketsPage() {
   const { session } = useAuth();
@@ -83,17 +15,15 @@ export function TicketsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (role !== 'CUSTOMER' || !accessToken) {
-      setTickets(null);
-      setError(null);
-      return;
-    }
+    if (role !== 'CUSTOMER' || !accessToken) return;
 
     let cancelled = false;
-    setError(null);
     listMyTickets(accessToken)
       .then((next) => {
-        if (!cancelled) setTickets(next);
+        if (!cancelled) {
+          setTickets(next);
+          setError(null);
+        }
       })
       .catch(() => {
         if (!cancelled) setError('Não foi possível carregar os ingressos');
@@ -151,7 +81,6 @@ export function TicketsPage() {
     return (
       <CinemaStage>
         <div className={marqueePanel} style={marqueeGlow}>
-          <p className={marqueePill}>Ingressos</p>
           <h1 className="m-0 max-w-[14ch] text-[clamp(2.1rem,6vw,3.6rem)] font-extrabold tracking-tight text-white">
             Meus ingressos
           </h1>
@@ -166,53 +95,16 @@ export function TicketsPage() {
     );
   }
 
-  const groups = groupTicketsByEvent(tickets);
-
   return (
     <CinemaStage contentClassName="items-start justify-center">
-      <div className="mx-auto grid w-full max-w-3xl gap-8 py-2">
-        <header className="grid justify-items-center gap-2 text-center">
-          <p className={marqueePill}>Ingressos</p>
-          <h1 className="m-0 text-[clamp(2.1rem,6vw,3.2rem)] font-extrabold tracking-tight text-white">
+      <div className="mx-auto grid w-full max-w-3xl gap-4">
+        <header className="grid justify-items-center gap-1 text-center">
+          <h1 className="m-0 text-[clamp(1.6rem,4.5vw,2.4rem)] font-extrabold tracking-tight text-white">
             Meus ingressos
           </h1>
         </header>
 
-        {groups.map((group) => (
-          <section
-            key={group.eventId}
-            className="grid gap-4 rounded-[1.75rem] border border-[#c4b5ff] px-5 py-6 md:px-8 md:py-8"
-            style={marqueeGlow}
-            aria-labelledby={`tickets-${group.eventId}`}
-          >
-            <h2
-              id={`tickets-${group.eventId}`}
-              className="m-0 text-xl font-extrabold tracking-tight text-white md:text-2xl"
-            >
-              {group.title}
-              {group.startsAt ? ` · ${formatSessionWhen(group.startsAt)}` : ''}
-            </h2>
-
-            <ul className="m-0 grid list-none gap-4 p-0">
-              {group.tickets.map((ticket) => (
-                <li
-                  key={ticket.id}
-                  className="grid justify-items-center gap-3 rounded-2xl border border-white/25 bg-black/25 px-4 py-5 text-center sm:grid-cols-[auto_1fr] sm:items-center sm:justify-items-start sm:text-left"
-                >
-                  <TicketQr code={ticket.code} />
-                  <div className="grid gap-1">
-                    <p className="m-0 text-lg font-extrabold text-white">
-                      Assento {ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '—'}
-                    </p>
-                    <p className="m-0 text-sm font-semibold text-white/75">
-                      {statusLabel[ticket.status]}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+        <TicketStubbook tickets={tickets} />
       </div>
     </CinemaStage>
   );
