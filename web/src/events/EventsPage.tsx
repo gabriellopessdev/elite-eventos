@@ -26,7 +26,6 @@ export function EventsPage() {
     <CinemaStage>
       {error ? (
         <div className={marqueePanel} style={marqueeGlow}>
-          <p className={marqueePill}>Em cartaz</p>
           <p className="m-0 text-base text-white" role="alert">
             {error}
           </p>
@@ -35,7 +34,6 @@ export function EventsPage() {
 
       {events === null && !error ? (
         <div className={marqueePanel} style={marqueeGlow}>
-          <p className={marqueePill}>Em cartaz</p>
           <p className="m-0 text-base text-white/80">Carregando sessões…</p>
         </div>
       ) : null}
@@ -50,9 +48,8 @@ export function EventsPage() {
       ) : null}
 
       {events && events.length > 0 ? (
-        <div className="flex w-full max-w-5xl flex-col items-center gap-8">
-          <p className={marqueePill}>Em cartaz</p>
-          <ul className="m-0 grid w-full list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex w-full max-w-6xl flex-col items-center gap-6">
+          <ul className="m-0 grid w-full list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {events.map((event) => (
               <li key={event.id}>
                 <SessionCard event={event} />
@@ -71,18 +68,18 @@ function SessionCard({ event }: { event: EventSummary }) {
   return (
     <Link
       to={`/events/${event.id}`}
-      className="grid overflow-hidden rounded-[1.25rem] border border-[#c4b5ff]"
+      className="grid overflow-hidden rounded-xl border border-[#c4b5ff]"
       style={marqueeGlow}
     >
       {poster ? (
-        <img src={poster} alt="" className="aspect-[2/3] w-full object-cover" />
+        <img src={poster} alt="" className="aspect-2/3 w-full object-cover" />
       ) : (
-        <div className="aspect-[2/3] w-full bg-[#1c1048]" aria-hidden="true" />
+        <div className="aspect-2/3 w-full bg-[#1c1048]" aria-hidden="true" />
       )}
-      <div className="grid gap-1 p-4 text-left">
-        <h2 className="m-0 text-lg font-extrabold text-white">{event.title}</h2>
-        <p className="m-0 text-sm text-white/75">{formatSessionWhen(event.startsAt)}</p>
-        <p className="m-0 text-sm font-extrabold text-white">{formatPrice(event.priceCents)}</p>
+      <div className="grid gap-0.5 p-2.5 text-left">
+        <h2 className="m-0 line-clamp-2 text-sm font-extrabold text-white">{event.title}</h2>
+        <p className="m-0 text-[11px] text-white/75">{formatSessionWhen(event.startsAt)}</p>
+        <p className="m-0 text-xs font-extrabold text-white">{formatPrice(event.priceCents)}</p>
       </div>
     </Link>
   );
