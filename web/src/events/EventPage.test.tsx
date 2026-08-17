@@ -286,7 +286,9 @@ describe('detalhe da sessão', () => {
       expect(archiveCall).toBeTruthy();
     });
     expect(confirmSpy).toHaveBeenCalled();
-    expect(await screen.findByText(/cartaz abre em breve|Em cartaz|Carregando sessões/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/cartaz abre em breve|Em cartaz|Carregando sessões/i),
+    ).toBeTruthy();
   });
 
   it('sessão inexistente volta ao cartaz', async () => {

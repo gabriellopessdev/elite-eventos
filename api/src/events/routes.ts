@@ -150,42 +150,46 @@ export async function eventRoutes(app: FastifyInstance) {
     return reply.code(201).send(event);
   });
 
-  app.post('/events/:id/hold', { preHandler: requireRole(Role.CUSTOMER) }, async (request, reply) => {
-    const parsed = parseHoldBody(request.body as HoldBody);
-    if ('error' in parsed) {
-      return reply.code(400).send({ message: parsed.error });
-    }
-
-    const userId = request.auth?.sub;
-    if (!userId) {
-      return reply.code(401).send({ message: 'Missing bearer token' });
-    }
-
-    const { id } = request.params as { id: string };
-
-    try {
-      const result = await holdSeats({
-        eventId: id,
-        userId,
-        seatIds: parsed.seatIds,
-      });
-      return {
-        seats: result.seats.map(publicSeat),
-        heldUntil: result.heldUntil.toISOString(),
-      };
-    } catch (err) {
-      if (err instanceof HoldConflictError) {
-        return reply.code(409).send({ message: err.message });
+  app.post(
+    '/events/:id/hold',
+    { preHandler: requireRole(Role.CUSTOMER) },
+    async (request, reply) => {
+      const parsed = parseHoldBody(request.body as HoldBody);
+      if ('error' in parsed) {
+        return reply.code(400).send({ message: parsed.error });
       }
-      if (err instanceof HoldValidationError) {
-        if (err.message === 'Event not found or not published') {
-          return reply.code(404).send({ message: 'Event not found' });
+
+      const userId = request.auth?.sub;
+      if (!userId) {
+        return reply.code(401).send({ message: 'Missing bearer token' });
+      }
+
+      const { id } = request.params as { id: string };
+
+      try {
+        const result = await holdSeats({
+          eventId: id,
+          userId,
+          seatIds: parsed.seatIds,
+        });
+        return {
+          seats: result.seats.map(publicSeat),
+          heldUntil: result.heldUntil.toISOString(),
+        };
+      } catch (err) {
+        if (err instanceof HoldConflictError) {
+          return reply.code(409).send({ message: err.message });
         }
-        return reply.code(400).send({ message: err.message });
+        if (err instanceof HoldValidationError) {
+          if (err.message === 'Event not found or not published') {
+            return reply.code(404).send({ message: 'Event not found' });
+          }
+          return reply.code(400).send({ message: err.message });
+        }
+        throw err;
       }
-      throw err;
-    }
-  });
+    },
+  );
 
   app.delete(
     '/events/:id/hold',

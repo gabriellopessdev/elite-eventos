@@ -73,9 +73,7 @@ export function CheckoutModal({
         setPayError(err.message);
         return;
       }
-      setPayError(
-        err instanceof ApiError ? err.message : 'Não foi possível concluir o pagamento',
-      );
+      setPayError(err instanceof ApiError ? err.message : 'Não foi possível concluir o pagamento');
     } finally {
       setPaying(false);
     }

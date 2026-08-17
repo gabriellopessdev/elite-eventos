@@ -92,9 +92,9 @@ describe('events/repo hold helpers', () => {
 
     await holdSeats({ eventId: event.id, userId: customerA, seatIds });
 
-    await expect(holdSeats({ eventId: event.id, userId: customerB, seatIds })).rejects.toBeInstanceOf(
-      HoldConflictError,
-    );
+    await expect(
+      holdSeats({ eventId: event.id, userId: customerB, seatIds }),
+    ).rejects.toBeInstanceOf(HoldConflictError);
   });
 
   test('replace hold releases previous seats of same user', async () => {

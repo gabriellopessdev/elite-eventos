@@ -243,11 +243,7 @@ const ticketCheckoutInclude = {
  * Simulated payment on the caller's active hold.
  * Fail (~25%) leaves seats HELD. Success → SOLD + one Ticket per seat.
  */
-export async function checkoutHold({
-  eventId,
-  userId,
-  random = Math.random,
-}: CheckoutHoldInput) {
+export async function checkoutHold({ eventId, userId, random = Math.random }: CheckoutHoldInput) {
   await releaseExpiredSeats();
 
   const held = await prisma.seat.findMany({

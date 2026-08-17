@@ -228,7 +228,9 @@ function EventSession({ id }: { id: string }) {
     try {
       const result = await holdSeats(id, selectedIds, accessToken);
       setEvent((prev) =>
-        prev ? { ...prev, seats: mergeHeldSeats(prev.seats, result.seats), myHold: undefined } : prev,
+        prev
+          ? { ...prev, seats: mergeHeldSeats(prev.seats, result.seats), myHold: undefined }
+          : prev,
       );
       setHeldUntil(result.heldUntil);
       setCheckoutOpen(true);

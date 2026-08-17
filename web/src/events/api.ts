@@ -93,7 +93,10 @@ export function formatSessionWhen(startsAt: string) {
 export async function listEvents(): Promise<EventSummary[]> {
   const res = await fetch(apiUrl('/events'));
   if (!res.ok) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível carregar as sessões'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível carregar as sessões'),
+      res.status,
+    );
   }
   const body = (await res.json()) as { events: EventSummary[] };
   return body.events;
@@ -108,7 +111,10 @@ export async function getEvent(
   });
   if (res.status === 404) return null;
   if (!res.ok) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível carregar a sessão'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível carregar a sessão'),
+      res.status,
+    );
   }
   return res.json() as Promise<EventDetail>;
 }
@@ -124,7 +130,10 @@ export async function holdSeats(
     body: JSON.stringify({ seatIds }),
   });
   if (!res.ok) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível reservar os assentos'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível reservar os assentos'),
+      res.status,
+    );
   }
   return res.json() as Promise<HoldResult>;
 }
@@ -135,7 +144,10 @@ export async function releaseHold(eventId: string, accessToken: string): Promise
     headers: authHeaders(accessToken),
   });
   if (!res.ok && res.status !== 204) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível liberar a reserva'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível liberar a reserva'),
+      res.status,
+    );
   }
 }
 
@@ -148,7 +160,10 @@ export async function checkout(
     headers: authHeaders(accessToken),
   });
   if (!res.ok) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível concluir o pagamento'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível concluir o pagamento'),
+      res.status,
+    );
   }
   return res.json() as Promise<{ tickets: Ticket[] }>;
 }
@@ -159,7 +174,10 @@ export async function archiveEvent(eventId: string, accessToken: string): Promis
     headers: authHeaders(accessToken),
   });
   if (!res.ok) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível arquivar a sessão'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível arquivar a sessão'),
+      res.status,
+    );
   }
   return res.json() as Promise<EventSummary>;
 }
@@ -169,7 +187,10 @@ export async function listMyTickets(accessToken: string): Promise<Ticket[]> {
     headers: authHeaders(accessToken),
   });
   if (!res.ok) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível carregar os ingressos'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível carregar os ingressos'),
+      res.status,
+    );
   }
   const body = (await res.json()) as { tickets: Ticket[] };
   return body.tickets;
@@ -214,7 +235,10 @@ export async function createEvent(
     body: JSON.stringify(input),
   });
   if (!res.ok) {
-    throw new ApiError(await readErrorMessage(res, 'Não foi possível publicar a sessão'), res.status);
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível publicar a sessão'),
+      res.status,
+    );
   }
   return res.json() as Promise<EventSummary>;
 }
