@@ -70,14 +70,16 @@ function SeatMap({ seats }: { seats: Seat[] }) {
 
 export function EventPage() {
   const { id } = useParams();
+  if (!id) return null;
+  return <EventSession key={id} id={id} />;
+}
+
+function EventSession({ id }: { id: string }) {
   const [event, setEvent] = useState<EventDetail | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
     let cancelled = false;
-    setEvent(undefined);
-    setError(null);
     getEvent(id)
       .then((next) => {
         if (!cancelled) setEvent(next);
