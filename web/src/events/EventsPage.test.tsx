@@ -50,6 +50,35 @@ describe('vitrine de sessões', () => {
     );
   });
 
+  it('agrupa por dia e ordena pelo horário, não pela ordem da API', async () => {
+    const manha = { ...dune, id: 'evt-a', title: 'Duna', startsAt: '2026-10-01T12:00:00.000Z' };
+    const noite = { ...dune, id: 'evt-b', title: 'Bacurau', startsAt: '2026-10-01T18:00:00.000Z' };
+    const outroDia = {
+      ...dune,
+      id: 'evt-c',
+      title: 'Cidade de Deus',
+      startsAt: '2026-10-05T12:00:00.000Z',
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ events: [outroDia, noite, manha] }),
+      }),
+    );
+
+    renderAt('/events');
+
+    const rows = await screen.findAllByRole('link', { name: /Duna|Bacurau|Cidade de Deus/ });
+    expect(rows.map((row) => row.getAttribute('href'))).toEqual([
+      '/events/evt-a',
+      '/events/evt-b',
+      '/events/evt-c',
+    ]);
+    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(2);
+  });
+
   it('mostra vazio quando não há sessões', async () => {
     vi.stubGlobal(
       'fetch',
