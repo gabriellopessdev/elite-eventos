@@ -9,6 +9,8 @@ export default defineConfig({
     proxy: {
       '/auth': 'http://localhost:3000',
       '/health': 'http://localhost:3000',
+      '/movies': 'http://localhost:3000',
+      '/events': 'http://localhost:3000',
     },
   },
   test: {
