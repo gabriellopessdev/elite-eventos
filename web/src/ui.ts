@@ -63,35 +63,3 @@ export const seatTone = {
   held: 'bg-transparent border-[1.5px] border-dashed border-line-strong cursor-not-allowed',
   sold: 'border-line cursor-not-allowed bg-[repeating-linear-gradient(45deg,var(--color-surface-top)_0_3px,var(--color-surface-high)_3px_6px)]',
 } as const;
-
-/** Placeholder do fundo do cinema — a foto entra por cima via <img>. */
-export const stageBg =
-  'absolute inset-0 bg-[radial-gradient(ellipse_60%_45%_at_50%_8%,rgb(105_101_219/0.34),transparent_62%),radial-gradient(ellipse_120%_90%_at_50%_50%,transparent_30%,rgb(7_4_20/0.88)_100%),linear-gradient(180deg,#1a1046_0%,#0d0726_55%,#070414_100%)]';
-
-/* ------------------------------------------------------------------------- */
-/* Legado — ainda consumido pelas telas não migradas. Sai no fim da migração. */
-
-export const island = 'rounded-2xl bg-surface shadow-elev-2';
-
-export const chromeBar = 'rounded-full border border-line bg-surface/85 backdrop-blur-xl';
-
-export const chromeBtn =
-  'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-extrabold text-accent-ink shadow-glow hover:bg-accent-hover';
-
-export const chromeBtnGhost =
-  'inline-flex min-h-10 items-center justify-center rounded-full border border-line-strong bg-transparent px-4 py-2 text-sm font-semibold text-muted hover:bg-lavender/8 hover:text-ink';
-
-export const marqueeGlow = {
-  background: 'radial-gradient(ellipse 70% 80% at 50% 45%, #7b6ae8 0%, #4a3cb8 42%, #1c1048 100%)',
-  boxShadow:
-    '0 0 0 1px rgb(196 181 255 / 0.35), 0 0 48px rgb(105 101 219 / 0.7), 0 0 120px rgb(105 101 219 / 0.35)',
-} as const;
-
-export const marqueePanel =
-  'flex w-full max-w-[52rem] flex-col items-center justify-center gap-8 rounded-[1.75rem] border border-lavender px-6 py-16 text-center md:gap-10 md:px-20 md:py-24';
-
-export const marqueePill =
-  'm-0 rounded-full border border-white/85 px-4 py-1.5 text-[11px] font-bold tracking-[0.22em] text-white uppercase';
-
-export const btnMarquee =
-  'inline-flex min-h-12 items-center gap-2 rounded-xl bg-white px-8 py-3 text-base font-extrabold text-accent hover:bg-surface-top';
