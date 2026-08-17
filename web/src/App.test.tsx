@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
@@ -32,15 +32,26 @@ function labels(name: string) {
 }
 
 describe('App shell', () => {
+  beforeEach(() => {
+    // A raiz agora é o cartaz, que busca as sessões.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ events: [] }),
+      }),
+    );
+  });
+
   afterEach(() => {
     localStorage.clear();
     vi.unstubAllGlobals();
   });
 
-  it('visitante vê Eventos e Entrar', () => {
+  it('visitante vê Eventos e Entrar', async () => {
     renderHome();
     expect(screen.getAllByText('Elite Eventos').length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: 'O cartaz abre em breve' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'O cartaz abre em breve' })).toBeTruthy();
     expect(labels('Eventos').length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Entrar/ }).length).toBeGreaterThan(0);
     expect(labels('Ingressos')).toHaveLength(0);
