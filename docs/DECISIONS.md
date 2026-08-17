@@ -49,3 +49,22 @@ stateDiagram-v2
 **Contexto:** o front ia em CSS próprio para fugir de template; a decisão do desafio é Tailwind.  
 **Decisão:** `@tailwindcss/vite` + paleta **Excalidraw** (`#6965db`, canvas `#f6f6f9`, ilhas brancas, fonte Assistant). Sem shadcn/MUI.  
 **Alternativas:** CSS puro; tema escuro verde/dourado (rejeitado).
+
+## ADR-008 — Sessão flat no MVP; Evento+N sessões depois
+
+**Status:** accepted  
+**Contexto:** 7 dias; org precisa publicar e vender já. Modelar Evento pai + N sessões (horários) + painel/gráficos cedo atrasa hold/checkout/portaria.  
+**Decisão:** no MVP, `Event` **é** a sessão vendável (1 filme TMDb + data/hora + preço + grade). Soft-archive via `Event.status` (`PUBLISHED` | `ARCHIVED`).  
+**Depois:** Evento pai (filme/show) → sessões filhas; painel do organizador; gráficos/relatórios de ocupação e receita.  
+**Alternativas:** hierarquia Evento/Sessão desde o dia 1 (mais joins e UI org sem ganho no fluxo vertical).
+
+## ADR-009 — Checkout: hold + pagamento simulado 25%
+
+**Status:** accepted  
+**Contexto:** fatias #3+#4 juntas em `feat/seat-hold`; precisa de hold atômico, demo de pagamento e ingresso com QR sem gateway real.  
+**Decisão:**
+- Hold: `POST /events/:id/hold` e `DELETE /events/:id/hold` (cliente; até 8 assentos; TTL 10 min no servidor).
+- Checkout: `POST /events/:id/checkout` — ~25% recusa simulada no servidor (402, hold permanece); sucesso marca assentos `SOLD` e cria **1 `Ticket` por assento** (sem modelo `Order`).
+- Soft archive: org arquiva sessão (`ARCHIVED`); some do catálogo público; libera `HELD`.
+- QR: `code = ticketId.sig` (HMAC, ADR-003).  
+**Alternativas:** Order+line items; gateway sandbox; hold só no front (rejeitado — double-sell).
