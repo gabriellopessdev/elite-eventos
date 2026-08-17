@@ -33,7 +33,8 @@ cd web && npm install && npm run dev
 
 - API: [http://localhost:3000/health](http://localhost:3000/health)  
 - Web: [http://localhost:5173/login](http://localhost:5173/login)  
-- O Vite encaminha `/auth`, `/movies` e `/events` para a API (`localhost:3000`)
+- O Vite encaminha `/auth`, `/movies`, `/events` e `/tickets` para a API (`localhost:3000`)
+- Em `api/.env`, além do JWT: `QR_HMAC_SECRET` (assinatura do QR) e opcional `SEAT_HOLD_TTL_MINUTES=10`
 
 
 

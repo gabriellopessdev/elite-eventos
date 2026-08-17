@@ -11,6 +11,7 @@ export default defineConfig({
       '/health': 'http://localhost:3000',
       '/movies': 'http://localhost:3000',
       '/events': 'http://localhost:3000',
+      '/tickets': 'http://localhost:3000',
     },
   },
   test: {
