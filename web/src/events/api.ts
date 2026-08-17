@@ -48,6 +48,13 @@ export type Ticket = {
   };
 };
 
+export type ScanOutcome = 'valid' | 'invalid' | 'used' | 'wrong_event';
+
+export type ScanResult = {
+  outcome: ScanOutcome;
+  seat?: { row: string; number: number };
+};
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -194,6 +201,25 @@ export async function listMyTickets(accessToken: string): Promise<Ticket[]> {
   }
   const body = (await res.json()) as { tickets: Ticket[] };
   return body.tickets;
+}
+
+export async function scanEvent(
+  eventId: string,
+  code: string,
+  accessToken: string,
+): Promise<ScanResult> {
+  const res = await fetch(apiUrl(`/events/${eventId}/scan`), {
+    method: 'POST',
+    headers: authHeaders(accessToken, true),
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) {
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível validar o ingresso'),
+      res.status,
+    );
+  }
+  return res.json() as Promise<ScanResult>;
 }
 
 export type MovieHit = {

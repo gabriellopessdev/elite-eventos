@@ -77,6 +77,7 @@ npm run db:seed
 ```
 
 Tela: [http://localhost:5173/login](http://localhost:5173/login) — atalhos **preenchem** o seed; o papel vem da API.  
+Portaria (`DOOR`): [http://localhost:5173/door](http://localhost:5173/door) — Validar (câmera ou código).  
 API: `POST /auth/login` → `{ accessToken, refreshToken, user }`.  
 Refresh: `POST /auth/refresh` `{ "refreshToken" }` → novo par (rotação).  
 Logout: `POST /auth/logout` `{ "refreshToken" }` → 204.  

@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { Role, SeatStatus, type Seat } from '@prisma/client';
 import { verifyAccessToken } from '../auth/jwt.js';
 import { requireRole } from '../auth/require-auth.js';
+import { scanTicket } from '../tickets/repo.js';
 import {
   ArchiveForbiddenError,
   ArchiveNotFoundError,
@@ -257,4 +258,18 @@ export async function eventRoutes(app: FastifyInstance) {
       }
     },
   );
+
+  app.post('/events/:id/scan', { preHandler: requireRole(Role.DOOR) }, async (request, reply) => {
+    const { code } = (request.body as { code?: unknown } | null) ?? {};
+    if (typeof code !== 'string' || code.trim() === '') {
+      return reply.code(400).send({ message: 'code is required' });
+    }
+
+    const { id } = request.params as { id: string };
+    const event = await getEvent(id);
+    if (!event) {
+      return reply.code(404).send({ message: 'Event not found' });
+    }
+    return scanTicket({ eventId: id, code });
+  });
 }

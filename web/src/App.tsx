@@ -7,16 +7,7 @@ import { EventsPage } from './events/EventsPage';
 import { EventPage } from './events/EventPage';
 import { NewEventPage } from './events/NewEventPage';
 import { TicketsPage } from './tickets/TicketsPage';
-import { island } from './ui';
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <section className={`${island} grid max-w-lg gap-2 p-6 md:p-8`}>
-      <h1 className="m-0 text-2xl font-extrabold text-brand">{title}</h1>
-      <p className="m-0 text-muted">Próximas fatias do roadmap.</p>
-    </section>
-  );
-}
+import { DoorPage } from './door/DoorPage';
 
 function AppRoutes() {
   return (
@@ -28,7 +19,7 @@ function AppRoutes() {
         <Route path="/events/new" element={<NewEventPage />} />
         <Route path="/events/:id" element={<EventPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
-        <Route path="/door" element={<Placeholder title="Portaria" />} />
+        <Route path="/door" element={<DoorPage />} />
       </Route>
     </Routes>
   );

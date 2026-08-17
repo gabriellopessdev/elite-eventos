@@ -68,3 +68,20 @@ stateDiagram-v2
 - Soft archive: org arquiva sessão (`ARCHIVED`); some do catálogo público; libera `HELD`.
 - QR: `code = ticketId.sig` (HMAC, ADR-003).  
 **Alternativas:** Order+line items; gateway sandbox; hold só no front (rejeitado — double-sell).
+
+## ADR-010 — Portaria: scan HMAC atômico por sessão
+
+**Status:** accepted  
+**Contexto:** fatia #5 em `feat/door`; QR já existe (ADR-003); `TicketStatus` `UNUSED`/`USED` no schema; sessão = `Event` publicado (ADR-008).  
+**Decisão:**
+- API: `POST /events/:id/scan` `{ code }`, `requireRole(DOOR)`.
+- Sessão alvo: `Event` `PUBLISHED`; arquivada ou inexistente → **404**.
+- Código vazio → **400**; org/cliente/anônimo → **401/403**.
+- Sucesso **200** `{ outcome: 'valid' | 'invalid' | 'used' | 'wrong_event', seat?: { row, number } }`.
+- Ordem de avaliação (não vazar existência de UUID):
+  1. HMAC inválido, payload lixo ou `ticketId` inexistente → `invalid`.
+  2. `eventId` do ticket ≠ `:id` da rota → `wrong_event` (mesmo se já `USED`).
+  3. `USED` na sessão certa → `used`.
+  4. Senão `updateMany` `UNUSED`→`USED` (atômico) → `valid` + assento.
+- Web (`/door`): seletor de sessão + filtro data/título no cliente; câmera (`jsQR`) e campo manual na mesma tela; válido consome na hora; permanece na rota; pausa **2 s** e ignora o mesmo `code` repetido.
+**Alternativas:** GET idempotente (rejeitado — portaria precisa marcar uso); validar só UUID no DB sem HMAC (rejeitado — ADR-003).

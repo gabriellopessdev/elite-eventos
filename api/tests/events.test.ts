@@ -95,10 +95,12 @@ describe('events API', () => {
   });
 
   beforeEach(async () => {
+    await prisma.ticket.deleteMany({ where: { event: { organizerId: orgId } } });
     await prisma.event.deleteMany({ where: { organizerId: orgId } });
   });
 
   afterAll(async () => {
+    await prisma.ticket.deleteMany({ where: { event: { organizerId: orgId } } });
     await prisma.event.deleteMany({ where: { organizerId: orgId } });
     await app.close();
     await prisma.$disconnect();
