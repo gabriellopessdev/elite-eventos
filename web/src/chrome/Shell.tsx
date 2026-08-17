@@ -14,7 +14,8 @@ const NAV_BY_ROLE: Record<Role | 'GUEST', ReadonlyArray<{ to: string; label: str
 };
 
 const navTabClass = ({ isActive }: { isActive: boolean }) =>
-  `flex flex-1 flex-col items-center gap-1 text-[11px] font-bold ${isActive ? 'text-accent' : 'text-muted hover:text-accent'
+  `flex flex-1 flex-col items-center gap-1 text-[11px] font-bold ${
+    isActive ? 'text-accent' : 'text-muted hover:text-accent'
   }`;
 
 const navBarClass = ({ isActive }: { isActive: boolean }) =>
@@ -59,7 +60,11 @@ function ChromeAction({ allowGuest = false }: { allowGuest?: boolean }) {
     );
   }
 
-  if (session.user.role === 'ORGANIZER' && (pathname === '/' || pathname === '/events')) {
+  if (
+    session.user.role === 'ORGANIZER' &&
+    pathname !== '/events/new' &&
+    (pathname === '/' || pathname.startsWith('/events'))
+  ) {
     return (
       <Link className={chromeBtn} to="/events/new">
         <span aria-hidden="true">+</span>
@@ -115,7 +120,7 @@ function SessionChip() {
 export function Shell() {
   const { session, logout } = useAuth();
   const { pathname } = useLocation();
-  const flushCinema = pathname === '/' || pathname === '/events' || pathname === '/events/new';
+  const flushCinema = pathname === '/' || pathname.startsWith('/events');
 
   return (
     <div className={flushCinema ? 'relative min-h-dvh' : 'flex min-h-dvh flex-col'}>

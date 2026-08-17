@@ -4,6 +4,7 @@ import { Shell } from './chrome/Shell';
 import { LoginPage } from './LoginPage';
 import { Home } from './Home';
 import { EventsPage } from './events/EventsPage';
+import { EventPage } from './events/EventPage';
 import { NewEventPage } from './events/NewEventPage';
 import { island } from './ui';
 
@@ -24,7 +25,7 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/new" element={<NewEventPage />} />
-        <Route path="/events/:id" element={<Placeholder title="Sessão" />} />
+        <Route path="/events/:id" element={<EventPage />} />
         <Route path="/tickets" element={<Placeholder title="Meus ingressos" />} />
         <Route path="/door" element={<Placeholder title="Portaria" />} />
       </Route>
