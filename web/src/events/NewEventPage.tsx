@@ -196,6 +196,7 @@ export function NewEventPage() {
                     <MoviePick
                       hit={hit}
                       selected={movie?.tmdbId === hit.tmdbId}
+                      dimmed={movie !== null && movie.tmdbId !== hit.tmdbId}
                       onSelect={setMovie}
                     />
                   </li>
@@ -283,22 +284,26 @@ function PosterPreview({ movie }: { movie: MovieHit | null }) {
 function MoviePick({
   hit,
   selected,
+  dimmed,
   onSelect,
 }: {
   hit: MovieHit;
   selected: boolean;
+  dimmed: boolean;
   onSelect: (hit: MovieHit) => void;
 }) {
   const poster = posterUrl(hit.posterPath);
   const year = hit.releaseDate?.slice(0, 4);
   const label = year ? `${hit.title} (${year})` : hit.title;
 
+  /* Com um filme escolhido, os outros recuam — desfocados e apagados — para o
+     escolhido ficar sozinho em foco. Continuam clicáveis para trocar. */
   return (
     <button
       type="button"
-      className={`grid w-full cursor-pointer gap-2 rounded-xl border bg-transparent p-0 pb-2 text-left ${
+      className={`grid w-full cursor-pointer gap-2 rounded-xl border bg-transparent p-0 pb-2 text-left transition duration-200 ${
         selected ? 'border-accent shadow-glow' : 'border-line hover:border-line-strong'
-      }`}
+      } ${dimmed ? 'opacity-45 blur-[2px] hover:opacity-100 hover:blur-none' : ''}`}
       onClick={() => onSelect(hit)}
     >
       <span className="relative block">
