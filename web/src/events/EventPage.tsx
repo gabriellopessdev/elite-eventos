@@ -6,6 +6,7 @@ import { btnMarquee, marqueeGlow, marqueePanel, marqueePill } from '../ui';
 import { CheckoutModal } from './CheckoutModal';
 import {
   ApiError,
+  archiveEvent,
   formatPrice,
   formatSessionWhen,
   getEvent,
@@ -152,6 +153,7 @@ function EventSession({ id }: { id: string }) {
   const [heldUntil, setHeldUntil] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,6 +277,25 @@ function EventSession({ id }: { id: string }) {
     navigate('/events');
   }
 
+  async function onArchive() {
+    if (!accessToken || role !== 'ORGANIZER') return;
+    const ok = window.confirm(
+      'Encerrar esta sessão? Ela sai do cartaz. Ingressos já emitidos continuam válidos.',
+    );
+    if (!ok) return;
+
+    setArchiving(true);
+    setActionError(null);
+    try {
+      await archiveEvent(id, accessToken);
+      navigate('/events');
+    } catch {
+      setActionError('Não foi possível encerrar a sessão');
+    } finally {
+      setArchiving(false);
+    }
+  }
+
   if (error) {
     return (
       <CinemaStage>
@@ -317,6 +338,8 @@ function EventSession({ id }: { id: string }) {
   const selectedSet = new Set(selectedIds);
   const canPay = selectedIds.length >= 1 && selectedIds.length <= MAX_SEATS && !paying;
   const heldSeats = event.seats.filter((seat) => selectedIds.includes(seat.id));
+  const isOwner =
+    role === 'ORGANIZER' && !!session?.user.id && session.user.id === event.organizerId;
 
   return (
     <CinemaStage contentClassName="items-start justify-center">
@@ -347,6 +370,16 @@ function EventSession({ id }: { id: string }) {
           >
             Voltar ao cartaz
           </Link>
+          {isOwner ? (
+            <button
+              type="button"
+              className="mt-1 inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-white/40 bg-transparent px-4 py-2 text-sm font-bold text-white/85 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={archiving}
+              onClick={() => void onArchive()}
+            >
+              {archiving ? 'Encerrando…' : 'Encerrar sessão'}
+            </button>
+          ) : null}
         </div>
 
         <div className="grid gap-5 justify-items-center">

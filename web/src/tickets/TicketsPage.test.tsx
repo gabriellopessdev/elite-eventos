@@ -1,0 +1,160 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { App } from '../App';
+import type { Ticket } from '../events/api';
+
+function seedCustomer() {
+  localStorage.setItem(
+    'elite.session',
+    JSON.stringify({
+      accessToken: 'access-customer',
+      refreshToken: 'refresh-customer',
+      user: {
+        id: 'user-customer',
+        email: 'cliente1@elite.local',
+        name: 'Cliente Um',
+        role: 'CUSTOMER',
+      },
+    }),
+  );
+}
+
+function seedOrganizer() {
+  localStorage.setItem(
+    'elite.session',
+    JSON.stringify({
+      accessToken: 'access-org',
+      refreshToken: 'refresh-org',
+      user: {
+        id: 'org-1',
+        email: 'org@elite.local',
+        name: 'Organizador Demo',
+        role: 'ORGANIZER',
+      },
+    }),
+  );
+}
+
+function renderAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
+}
+
+const ticketsFixture: Ticket[] = [
+  {
+    id: 't1',
+    eventId: 'evt-dune',
+    seatId: 'seat-0',
+    code: 't1.sig',
+    status: 'UNUSED',
+    createdAt: '2026-08-17T12:00:00.000Z',
+    event: {
+      id: 'evt-dune',
+      title: 'Duna',
+      posterPath: '/dune.jpg',
+      startsAt: '2026-10-01T20:00:00.000Z',
+    },
+    seat: { row: 'A', number: 1 },
+  },
+  {
+    id: 't2',
+    eventId: 'evt-dune',
+    seatId: 'seat-1',
+    code: 't2.sig',
+    status: 'USED',
+    createdAt: '2026-08-17T12:01:00.000Z',
+    event: {
+      id: 'evt-dune',
+      title: 'Duna',
+      posterPath: '/dune.jpg',
+      startsAt: '2026-10-01T20:00:00.000Z',
+    },
+    seat: { row: 'A', number: 2 },
+  },
+  {
+    id: 't3',
+    eventId: 'evt-oppen',
+    seatId: 'seat-9',
+    code: 't3.sig',
+    status: 'UNUSED',
+    createdAt: '2026-08-17T11:00:00.000Z',
+    event: {
+      id: 'evt-oppen',
+      title: 'Oppenheimer',
+      posterPath: '/opp.jpg',
+      startsAt: '2026-11-02T19:30:00.000Z',
+    },
+    seat: { row: 'C', number: 5 },
+  },
+];
+
+describe('TicketsPage', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('visitante vê mensagem para entrar como cliente', async () => {
+    renderAt('/tickets');
+    expect(await screen.findByRole('heading', { name: 'Meus ingressos' })).toBeTruthy();
+    expect(screen.getByText(/Entre como cliente/i)).toBeTruthy();
+  });
+
+  it('organizador vê mensagem para entrar como cliente', async () => {
+    seedOrganizer();
+    renderAt('/tickets');
+    expect(await screen.findByRole('heading', { name: 'Meus ingressos' })).toBeTruthy();
+    expect(screen.getByText(/Entre como cliente/i)).toBeTruthy();
+  });
+
+  it('cliente sem ingressos vê empty state', async () => {
+    seedCustomer();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ tickets: [] }),
+      }),
+    );
+
+    renderAt('/tickets');
+
+    expect(await screen.findByRole('heading', { name: 'Meus ingressos' })).toBeTruthy();
+    expect(await screen.findByText(/ainda não tem ingressos/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ver cartaz' }).getAttribute('href')).toBe('/events');
+  });
+
+  it('cliente agrupa ingressos por evento com assento e status', async () => {
+    seedCustomer();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ tickets: ticketsFixture }),
+      }),
+    );
+
+    renderAt('/tickets');
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /Duna/ })).toBeTruthy();
+    });
+
+    expect(screen.getByRole('heading', { name: /Oppenheimer/ })).toBeTruthy();
+    expect(screen.getByText('Assento A1')).toBeTruthy();
+    expect(screen.getByText('Assento A2')).toBeTruthy();
+    expect(screen.getByText('Assento C5')).toBeTruthy();
+    expect(screen.getAllByText('Não usado')).toHaveLength(2);
+    expect(screen.getByText('Usado')).toBeTruthy();
+  });
+});

@@ -120,7 +120,8 @@ function SessionChip() {
 export function Shell() {
   const { session, logout } = useAuth();
   const { pathname } = useLocation();
-  const flushCinema = pathname === '/' || pathname.startsWith('/events');
+  const flushCinema =
+    pathname === '/' || pathname.startsWith('/events') || pathname === '/tickets';
 
   return (
     <div className={flushCinema ? 'relative min-h-dvh' : 'flex min-h-dvh flex-col'}>

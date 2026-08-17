@@ -40,6 +40,22 @@ function seedCustomer() {
   );
 }
 
+function seedOrganizer(userId = 'org-1') {
+  localStorage.setItem(
+    'elite.session',
+    JSON.stringify({
+      accessToken: 'access-org',
+      refreshToken: 'refresh-org',
+      user: {
+        id: userId,
+        email: 'org@elite.local',
+        name: 'Organizador Demo',
+        role: 'ORGANIZER',
+      },
+    }),
+  );
+}
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -188,6 +204,13 @@ describe('detalhe da sessão', () => {
           }),
         };
       }
+      if (url.endsWith('/tickets') || url.includes('/tickets')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ tickets: [] }),
+        };
+      }
       return {
         ok: true,
         status: 200,
@@ -216,6 +239,54 @@ describe('detalhe da sessão', () => {
       ([url, init]) => String(url).includes('/hold') && (init as RequestInit)?.method === 'DELETE',
     );
     expect(deleteHold).toBeUndefined();
+  });
+
+  it('dono ORGANIZER vê Encerrar sessão e arquiva com confirm', async () => {
+    seedOrganizer('org-1');
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/archive') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ...dune, status: 'ARCHIVED' }),
+        };
+      }
+      if (url.includes('/events') && !url.includes('/evt-dune')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ events: [] }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...dune,
+          seats: seats([
+            ['A', 1],
+            ['A', 2],
+          ]),
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('/events/evt-dune');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Encerrar sessão' }));
+
+    await waitFor(() => {
+      const archiveCall = fetchMock.mock.calls.find(
+        ([url, init]) =>
+          String(url).includes('/archive') && (init as RequestInit)?.method === 'POST',
+      );
+      expect(archiveCall).toBeTruthy();
+    });
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(await screen.findByText(/cartaz abre em breve|Em cartaz|Carregando sessões/i)).toBeTruthy();
   });
 
   it('sessão inexistente volta ao cartaz', async () => {
