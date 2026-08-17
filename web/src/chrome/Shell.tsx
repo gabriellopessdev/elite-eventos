@@ -1,41 +1,54 @@
+import type { ComponentType } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { ROLE_LABEL, type Role } from '../auth/auth';
-import { chromeBar, chromeBtn, chromeBtnGhost } from '../ui';
+import { btn, btnQuiet, glass } from '../ui';
+import { FilmIcon, PlusIcon, ScanIcon, TicketIcon, UserIcon } from '../icons';
 
-const NAV_BY_ROLE: Record<Role | 'GUEST', ReadonlyArray<{ to: string; label: string }>> = {
-  GUEST: [{ to: '/events', label: 'Eventos' }],
+type NavItem = { to: string; label: string; Icon: ComponentType<{ size?: number }> };
+
+const NAV_BY_ROLE: Record<Role | 'GUEST', ReadonlyArray<NavItem>> = {
+  GUEST: [{ to: '/events', label: 'Eventos', Icon: FilmIcon }],
   CUSTOMER: [
-    { to: '/events', label: 'Eventos' },
-    { to: '/tickets', label: 'Ingressos' },
+    { to: '/events', label: 'Eventos', Icon: FilmIcon },
+    { to: '/tickets', label: 'Ingressos', Icon: TicketIcon },
   ],
-  ORGANIZER: [{ to: '/events', label: 'Eventos' }],
-  DOOR: [{ to: '/door', label: 'Validar' }],
+  ORGANIZER: [{ to: '/events', label: 'Eventos', Icon: FilmIcon }],
+  DOOR: [{ to: '/door', label: 'Validar', Icon: ScanIcon }],
 };
 
-const navTabClass = ({ isActive }: { isActive: boolean }) =>
-  `flex flex-1 flex-col items-center gap-1 text-[11px] font-bold ${
-    isActive ? 'text-accent' : 'text-muted hover:text-accent'
+/** A foto do teatro só entra no cartaz e na sessão. */
+export function isStageRoute(pathname: string) {
+  return pathname === '/events' || (pathname.startsWith('/events/') && pathname !== '/events/new');
+}
+
+const barTab = ({ isActive }: { isActive: boolean }) =>
+  `rounded-full px-4 py-2 text-sm font-bold ${
+    isActive ? 'bg-surface-top text-ink' : 'text-faint hover:text-ink'
   }`;
 
-const navBarClass = ({ isActive }: { isActive: boolean }) =>
-  isActive
-    ? 'rounded-lg border border-white/10 bg-black/45 px-4 py-2 text-sm font-bold text-[#c4b5ff]'
-    : 'rounded-lg px-4 py-2 text-sm font-bold text-white/45 hover:text-white';
+const bottomTab = ({ isActive }: { isActive: boolean }) =>
+  `flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-xs font-bold ${
+    isActive ? 'text-lavender' : 'text-faint'
+  }`;
 
-function NavItems({ variant }: { variant: 'tab' | 'bar' }) {
+function BrandMark({ labelled = false }: { labelled?: boolean }) {
   const { session } = useAuth();
-  const items = NAV_BY_ROLE[session?.user.role ?? 'GUEST'];
-  const className = variant === 'tab' ? navTabClass : navBarClass;
 
   return (
-    <>
-      {items.map((item) => (
-        <NavLink key={item.to} className={className} to={item.to}>
-          {item.label}
-        </NavLink>
-      ))}
-    </>
+    <div className="grid min-w-0 gap-0.5">
+      <Link to="/" className="truncate font-extrabold tracking-tight text-ink hover:text-ink">
+        Elite Eventos
+      </Link>
+      {session ? (
+        <p
+          className="m-0 truncate text-[13px] text-faint"
+          {...(labelled ? { 'aria-label': 'sessão' } : {})}
+        >
+          {session.user.name} · {ROLE_LABEL[session.user.role]}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -46,28 +59,26 @@ function ChromeAction({ allowGuest = false }: { allowGuest?: boolean }) {
   if (!session) {
     if (!allowGuest) return null;
     return (
-      <Link className={chromeBtn} to="/login">
+      <Link className={`${btn} min-h-10 px-4 text-sm`} to="/login">
         Entrar
       </Link>
     );
   }
 
-  if (session.user.role === 'ORGANIZER' && pathname === '/events/new') {
+  if (session.user.role !== 'ORGANIZER') return null;
+
+  if (pathname === '/events/new') {
     return (
-      <button className={chromeBtn} form="publish-session" type="submit">
+      <button className={`${btn} min-h-10 px-4 text-sm`} form="publish-session" type="submit">
         Publicar
       </button>
     );
   }
 
-  if (
-    session.user.role === 'ORGANIZER' &&
-    pathname !== '/events/new' &&
-    (pathname === '/' || pathname.startsWith('/events'))
-  ) {
+  if (pathname === '/' || pathname.startsWith('/events')) {
     return (
-      <Link className={chromeBtn} to="/events/new">
-        <span aria-hidden="true">+</span>
+      <Link className={`${btn} min-h-10 px-4 text-sm`} to="/events/new">
+        <PlusIcon size={18} />
         Nova sessão
       </Link>
     );
@@ -75,80 +86,46 @@ function ChromeAction({ allowGuest = false }: { allowGuest?: boolean }) {
 
   return null;
 }
-function SessionMeta({ labelled = false }: { labelled?: boolean }) {
-  const { session } = useAuth();
-  if (!session) return null;
-
-  return (
-    <p
-      className="m-0 truncate text-xs font-semibold text-white/50"
-      {...(labelled ? { 'aria-label': 'sessão' } : {})}
-    >
-      {session.user.name} · {ROLE_LABEL[session.user.role]}
-    </p>
-  );
-}
-
-function BrandMark({ labelled = false }: { labelled?: boolean }) {
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="grid min-w-0 gap-0.5">
-        <Link to="/" className="truncate text-base font-extrabold tracking-tight text-white">
-          Elite Eventos
-        </Link>
-        <SessionMeta labelled={labelled} />
-      </div>
-    </div>
-  );
-}
-
-function SessionChip() {
-  const { session, logout } = useAuth();
-  if (!session) return null;
-
-  return (
-    <button
-      type="button"
-      className={`${chromeBtnGhost} min-h-10 px-4 py-2 text-sm`}
-      onClick={() => void logout()}
-    >
-      Sair
-    </button>
-  );
-}
 
 export function Shell() {
   const { session, logout } = useAuth();
   const { pathname } = useLocation();
-  const flushCinema = pathname === '/' || pathname.startsWith('/events') || pathname === '/tickets';
+  const items = NAV_BY_ROLE[session?.user.role ?? 'GUEST'];
+  const stage = isStageRoute(pathname);
 
   return (
-    <div className={flushCinema ? 'relative min-h-dvh' : 'flex min-h-dvh flex-col'}>
+    <div className={stage ? 'relative min-h-dvh' : 'flex min-h-dvh flex-col'}>
       <header
-        className={
-          flushCinema
-            ? 'absolute inset-x-0 top-0 z-20 hidden p-3 md:block md:px-6 md:pt-4'
-            : 'sticky top-0 z-10 hidden p-3 md:block md:px-6 md:pt-4'
-        }
+        className={`${stage ? 'absolute' : 'sticky'} inset-x-0 top-0 z-20 hidden p-3 md:block md:px-6 md:pt-4`}
       >
         <div
-          className={`${chromeBar} mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-3 py-2.5`}
+          className={`${glass} mx-auto grid max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-full px-4 py-2.5`}
         >
           <BrandMark labelled />
           <nav className="flex items-center gap-1">
-            <NavItems variant="bar" />
+            {items.map((item) => (
+              <NavLink key={item.to} className={barTab} to={item.to}>
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
           <div className="flex items-center justify-end gap-2">
             <ChromeAction allowGuest />
-            <SessionChip />
+            {session ? (
+              <button
+                type="button"
+                className={`${btnQuiet} min-h-10 text-sm`}
+                onClick={() => void logout()}
+              >
+                Sair
+              </button>
+            ) : null}
           </div>
         </div>
       </header>
 
-      <header
-        className={flushCinema ? 'absolute inset-x-0 top-0 z-20 p-3 md:hidden' : 'p-3 md:hidden'}
-      >
-        <div className={`${chromeBar} flex items-center justify-between gap-3 px-3 py-2`}>
+      <header className={`${stage ? 'absolute' : ''} inset-x-0 top-0 z-20 p-3 md:hidden`}>
+        <div className={`${glass} flex items-center justify-between gap-3 rounded-full px-4 py-2`}>
           <BrandMark />
           <ChromeAction />
         </div>
@@ -156,29 +133,36 @@ export function Shell() {
 
       <main
         className={
-          flushCinema
+          stage
             ? 'min-h-dvh w-full pb-24 md:pb-0'
-            : 'mx-auto w-full max-w-6xl flex-1 px-4 py-5 pb-24 md:px-6 md:py-10 md:pb-12'
+            : 'mx-auto w-full max-w-6xl flex-1 px-4 pt-20 pb-24 md:px-6 md:pt-24 md:pb-12'
         }
       >
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-10 flex justify-around border-t border-line bg-surface/95 px-2 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden">
-        <NavItems variant="tab" />
+      <nav className="fixed inset-x-0 bottom-0 z-10 flex justify-around border-t border-line bg-surface/95 px-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:hidden">
+        {items.map((item) => (
+          <NavLink key={item.to} className={bottomTab} to={item.to}>
+            <item.Icon size={22} />
+            {item.label}
+          </NavLink>
+        ))}
         {session ? (
           <button
             type="button"
-            className="flex flex-1 flex-col items-center gap-1 text-[11px] font-bold text-muted"
+            className="flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-0 bg-transparent text-xs font-bold text-faint"
             onClick={() => void logout()}
           >
+            <UserIcon size={22} />
             Sair
           </button>
         ) : (
           <Link
-            className="flex flex-1 flex-col items-center gap-1 text-[11px] font-bold text-accent"
+            className="flex min-h-14 flex-1 flex-col items-center justify-center gap-1 text-xs font-bold text-lavender hover:text-lavender"
             to="/login"
           >
+            <UserIcon size={22} />
             Entrar
           </Link>
         )}
