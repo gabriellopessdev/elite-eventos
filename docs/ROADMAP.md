@@ -6,9 +6,9 @@ Uma linha = uma entrega. **Fluxo vertical antes dos opcionais.**
 |---|-------|--------|--------------|
 | 0 | Bootstrap api+web · lint · prettier · testes health · CI · Compose | ✅ | pipeline verde local |
 | 1 | Auth 3 papéis + seed users | ✅ | login organizer/customer/door |
-| 2 | TMDb + criar/listar eventos (org) | ⬜ | evento publicado com grade |
-| 3 | Mapa assentos + hold TTL 10 min + lock atômico | 🔄 | double-sell impossível — junto com #4 em `feat/seat-hold` |
-| 4 | Pagamento simulado ok/recusa → ingresso + QR HMAC | 🔄 | meus ingressos — junto com #3 em `feat/seat-hold` |
+| 2 | TMDb + criar/listar eventos (org) | ✅ | evento publicado com grade |
+| 3 | Mapa assentos + hold TTL 10 min + lock atômico | ✅ | double-sell impossível — junto com #4 em `feat/seat-hold` |
+| 4 | Pagamento simulado ok/recusa → ingresso + QR HMAC | ✅ | meus ingressos — junto com #3 em `feat/seat-hold` |
 | 5 | Portaria: câmera + digitação · válido/inválido/usado/evento errado | ⬜ | fluxo ponta a ponta |
 | 6 | Link compartilhável do ingresso | ⬜ | abre ingresso read-only |
 | 7 | Busca/filtro · painel org · cancelamento+estoque | ⬜ | opcionais produto |
