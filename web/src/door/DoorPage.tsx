@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { btn, fieldInput, fieldLabel, hintError, pill, surface, surfaceHigh } from '../ui';
+import { btn, fieldInput, fieldLabel, hintError, skeleton, surface, surfaceHigh } from '../ui';
 import { AlertIcon, CheckIcon, ClockIcon, CloseIcon } from '../icons';
 import {
   formatSessionWhen,
   listEvents,
+  posterUrl,
   scanEvent,
   type EventSummary,
   type ScanOutcome,
@@ -64,6 +65,51 @@ function OutcomeIcon({ outcome }: { outcome: ScanOutcome }) {
 }
 
 type Reading = { id: number; outcome: ScanOutcome; text: string; at: string };
+
+/** Card de sessão: o pôster é o que o porteiro reconhece de relance na fila. */
+function SessionCard({
+  event,
+  selected,
+  onSelect,
+}: {
+  event: EventSummary;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const poster = posterUrl(event.posterPath, 'w185');
+
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={`grid w-full cursor-pointer gap-2 rounded-2xl border bg-surface p-2 text-left ${
+        selected ? 'border-accent shadow-glow' : 'border-line hover:border-line-strong'
+      }`}
+    >
+      <span className="relative block">
+        {poster ? (
+          <img src={poster} alt="" className="aspect-2/3 w-full rounded-xl object-cover" />
+        ) : (
+          <span className="block aspect-2/3 w-full rounded-xl bg-surface-high" />
+        )}
+        {selected ? (
+          <span className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-accent text-accent-ink">
+            <CheckIcon size={16} strokeWidth={3} />
+          </span>
+        ) : null}
+      </span>
+      <span className="grid gap-0.5 px-1 pb-1">
+        <span className={`truncate font-bold ${selected ? 'text-ink' : 'text-muted'}`}>
+          {event.title}
+        </span>
+        <span className="text-[13px] text-faint tabular-nums">
+          {formatSessionWhen(event.startsAt)}
+        </span>
+      </span>
+    </button>
+  );
+}
 
 export function DoorPage() {
   const { session } = useAuth();
@@ -192,10 +238,19 @@ export function DoorPage() {
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-lg gap-5">
-      <header className="grid gap-2">
-        <span className={`${pill} justify-self-start`}>Portaria</span>
+    <div className="mx-auto grid w-full max-w-3xl gap-6">
+      <header className="grid gap-1.5">
         <h1 className="m-0 text-3xl font-extrabold tracking-tight md:text-4xl">Validar</h1>
+        <p className="m-0 text-muted">
+          {chosen ? (
+            <>
+              Validando a entrada de <span className="font-bold text-ink">{chosen.title}</span> ·{' '}
+              {formatSessionWhen(chosen.startsAt)}
+            </>
+          ) : (
+            'Escolha a sessão para ligar a câmera e liberar a validação.'
+          )}
+        </p>
       </header>
 
       {loadError ? (
@@ -204,7 +259,10 @@ export function DoorPage() {
         </p>
       ) : null}
 
-      <section className={`${surfaceHigh} grid gap-4 p-4`}>
+      <section className={`${surfaceHigh} grid gap-3 p-4`}>
+        <h2 className="m-0 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+          Filtros
+        </h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={`grid gap-1.5 ${fieldLabel}`} htmlFor="door-date">
             Data
@@ -226,37 +284,52 @@ export function DoorPage() {
             />
           </label>
         </div>
+      </section>
 
-        <label className={`grid gap-1.5 ${fieldLabel}`} htmlFor="door-session">
-          Sessão
-          <select
-            id="door-session"
-            className={`${fieldInput} font-normal`}
-            value={eventId}
-            onChange={(e) => {
-              setEventId(e.target.value);
-              setResult(null);
-              setError(null);
-            }}
+      <section className="grid gap-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="m-0 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+            Sessão
+          </h2>
+          {events ? (
+            <span className="text-[13px] text-faint">
+              {filtered.length} {filtered.length === 1 ? 'sessão' : 'sessões'}
+            </span>
+          ) : null}
+        </div>
+
+        {events === null ? (
+          <ul
+            className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3"
+            aria-hidden="true"
           >
-            <option value="">Escolha a sessão</option>
-            {filtered.map((event) => (
-              <option key={event.id} value={event.id}>
-                {event.title} · {formatSessionWhen(event.startsAt)}
-              </option>
+            {[0, 1, 2].map((i) => (
+              <li key={i} className={`${surface} grid gap-2 p-2`}>
+                <span className={`${skeleton} block aspect-2/3 w-full`} />
+                <span className={`${skeleton} block h-3.5 w-4/5`} />
+              </li>
             ))}
-          </select>
-        </label>
-
-        {chosen ? (
-          <p className="m-0 text-[13px] text-muted">
-            Validando entrada de <span className="font-bold text-ink">{chosen.title}</span> ·{' '}
-            {formatSessionWhen(chosen.startsAt)}
+          </ul>
+        ) : filtered.length === 0 ? (
+          <p className={`${surface} m-0 px-4 py-6 text-center text-muted`}>
+            Nenhuma sessão bate com os filtros.
           </p>
         ) : (
-          <p className="m-0 text-[13px] text-faint">
-            Escolha a sessão para ligar a câmera e liberar a validação.
-          </p>
+          <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3">
+            {filtered.map((event) => (
+              <li key={event.id}>
+                <SessionCard
+                  event={event}
+                  selected={event.id === eventId}
+                  onSelect={() => {
+                    setEventId(event.id === eventId ? '' : event.id);
+                    setResult(null);
+                    setError(null);
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

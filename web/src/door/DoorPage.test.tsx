@@ -81,20 +81,19 @@ describe('portaria /door', () => {
     renderAt('/door');
 
     expect(await screen.findByRole('heading', { name: 'Validar' })).toBeTruthy();
-    expect(await screen.findByRole('option', { name: /Duna/ })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Escolha a sessão' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: /Oppenheimer/ })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /Duna/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Oppenheimer/ })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Oppen' } });
-    expect(screen.getByRole('option', { name: /Oppenheimer/ })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: /Duna/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Oppenheimer/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Duna/ })).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText('Data'), {
       target: { value: sessionDay(duna.startsAt) },
     });
-    expect(screen.getByRole('option', { name: /Duna/ })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: /Oppenheimer/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Duna/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Oppenheimer/ })).toBeNull();
   });
 
   it('sem sessão escolhida, Validar fica desabilitado', async () => {
@@ -102,7 +101,7 @@ describe('portaria /door', () => {
     vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
     renderAt('/door');
 
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
     const submit = screen.getByRole('button', { name: 'Validar' });
     expect(submit).toHaveProperty('disabled', true);
 
@@ -118,9 +117,9 @@ describe('portaria /door', () => {
       seat: { row: 'B', number: 7 },
     });
     renderAt('/door');
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
 
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
 
@@ -134,9 +133,9 @@ describe('portaria /door', () => {
     vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
     vi.spyOn(api, 'scanEvent').mockResolvedValue({ outcome: 'wrong_event' });
     renderAt('/door');
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
 
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'other.sig' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
 
@@ -148,9 +147,9 @@ describe('portaria /door', () => {
     vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
     const scan = vi.spyOn(api, 'scanEvent').mockResolvedValueOnce({ outcome: 'invalid' });
     renderAt('/door');
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
 
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'lixo' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect((await screen.findByRole('status')).textContent).toBe('Ingresso inválido');
@@ -166,14 +165,14 @@ describe('portaria /door', () => {
     vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
     vi.spyOn(api, 'scanEvent').mockResolvedValue({ outcome: 'invalid' });
     renderAt('/door');
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
 
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'lixo' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect(await screen.findByRole('status')).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: oppenheimer.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Oppenheimer/ }));
     expect(screen.queryByRole('status')).toBeNull();
   });
 
@@ -182,15 +181,19 @@ describe('portaria /door', () => {
     vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
     vi.spyOn(api, 'scanEvent').mockResolvedValue({ outcome: 'invalid' });
     renderAt('/door');
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
 
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'lixo' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect(await screen.findByRole('status')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Oppen' } });
-    expect((screen.getByLabelText('Sessão') as HTMLSelectElement).value).toBe('');
+    // O card escolhido saiu do filtro: a seleção cai junto com a faixa.
+    expect(screen.queryByRole('button', { name: /Duna/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Oppenheimer/ }).getAttribute('aria-pressed')).toBe(
+      'false',
+    );
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByRole('button', { name: 'Validar' })).toHaveProperty('disabled', true);
   });
@@ -203,10 +206,10 @@ describe('portaria /door', () => {
       seat: { row: 'B', number: 7 },
     });
     renderAt('/door');
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
 
     vi.useFakeTimers();
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     await act(async () => {
@@ -238,9 +241,9 @@ describe('portaria /door', () => {
     vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
     vi.spyOn(api, 'scanEvent').mockRejectedValue(new ApiError('boom', 500));
     renderAt('/door');
-    await screen.findByRole('option', { name: /Duna/ });
+    await screen.findByRole('button', { name: /Duna/ });
 
-    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
 
