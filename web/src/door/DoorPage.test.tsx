@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 import * as api from '../events/api';
@@ -56,6 +56,7 @@ describe('portaria /door', () => {
 
   afterEach(() => {
     localStorage.clear();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -192,6 +193,44 @@ describe('portaria /door', () => {
     expect((screen.getByLabelText('Sessão') as HTMLSelectElement).value).toBe('');
     expect(screen.queryByRole('status')).toBeNull();
     expect(screen.getByRole('button', { name: 'Validar' })).toHaveProperty('disabled', true);
+  });
+
+  it('ignora o mesmo código por 2s após validar', async () => {
+    seedRole('DOOR', 'Portaria Demo');
+    vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
+    const scan = vi.spyOn(api, 'scanEvent').mockResolvedValue({
+      outcome: 'valid',
+      seat: { row: 'B', number: 7 },
+    });
+    renderAt('/door');
+    await screen.findByRole('option', { name: /Duna/ });
+
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: duna.id } });
+    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole('status').textContent).toBe('Válido · B7');
+    expect(scan).toHaveBeenCalledTimes(1);
+
+    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
+    expect(scan).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(scan).toHaveBeenCalledTimes(2);
+    expect(scan).toHaveBeenNthCalledWith(2, duna.id, 'ticket.sig', 'access-DOOR');
   });
 
   it('falha de rede não mistura com os quatro resultados', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { CinemaStage } from '../cinema';
@@ -10,6 +10,9 @@ import {
   type EventSummary,
   type ScanResult,
 } from '../events/api';
+import { QrCamera } from './QrCamera';
+
+const SAME_CODE_PAUSE_MS = 2000;
 
 export function sessionDay(iso: string): string {
   const d = new Date(iso);
@@ -46,6 +49,10 @@ export function DoorPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [ignoreCode, setIgnoreCode] = useState<string | null>(null);
+  const pauseRef = useRef<{ code: string; until: number } | null>(null);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | 0>(0);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     if (session?.user.role !== 'DOOR') return;
@@ -67,6 +74,12 @@ export function DoorPage() {
       cancelled = true;
     };
   }, [session]);
+
+  useEffect(() => {
+    return () => {
+      if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     return (events ?? []).filter((event) => {
@@ -99,10 +112,25 @@ export function DoorPage() {
   const accessToken = session.accessToken;
   const canSubmit = Boolean(eventId) && code.trim().length > 0 && !submitting;
 
-  async function onValidate(event: FormEvent) {
-    event.preventDefault();
-    if (!eventId || !code.trim() || submitting) return;
-    const submitted = code.trim();
+  function armPause(nextCode: string) {
+    pauseRef.current = { code: nextCode, until: Date.now() + SAME_CODE_PAUSE_MS };
+    setIgnoreCode(nextCode);
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = setTimeout(() => {
+      pauseRef.current = null;
+      setIgnoreCode(null);
+      pauseTimerRef.current = 0;
+    }, SAME_CODE_PAUSE_MS);
+  }
+
+  async function submitScan(raw: string) {
+    const submitted = raw.trim();
+    if (!eventId || !submitted || inFlightRef.current) return;
+    const pause = pauseRef.current;
+    if (pause && pause.code === submitted && Date.now() < pause.until) return;
+
+    inFlightRef.current = true;
+    armPause(submitted);
     setSubmitting(true);
     setStatus(null);
     setError(null);
@@ -113,8 +141,14 @@ export function DoorPage() {
     } catch {
       setError('Não foi possível validar o ingresso');
     } finally {
+      inFlightRef.current = false;
       setSubmitting(false);
     }
+  }
+
+  async function onValidate(event: FormEvent) {
+    event.preventDefault();
+    await submitScan(code);
   }
 
   return (
@@ -179,6 +213,15 @@ export function DoorPage() {
             ))}
           </select>
         </label>
+
+        <QrCamera
+          key={eventId || 'off'}
+          enabled={Boolean(eventId)}
+          ignoreCode={ignoreCode}
+          onCode={(value) => {
+            void submitScan(value);
+          }}
+        />
 
         <form className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={onValidate}>
           <label className="grid gap-1.5 text-xs font-semibold text-white/80" htmlFor="door-code">
