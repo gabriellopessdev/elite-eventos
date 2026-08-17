@@ -1,18 +1,28 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthError, DEMO_ACCOUNTS, ROLE_LABEL } from './auth/auth';
 import { useAuth } from './auth/useAuth';
 import { btn, chipActive, chipIdle, fieldInput } from './ui';
 
+/** Only same-origin relative paths; reject protocol-relative `//evil`. */
+export function safeNextPath(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null;
+  return raw;
+}
+
 export function LoginPage() {
   const { login, session } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = safeNextPath(searchParams.get('next'));
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   const filledDemo = DEMO_ACCOUNTS.find((account) => account.email === email);
+  const continueTo = next ?? '/';
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -20,7 +30,7 @@ export function LoginPage() {
     setPending(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate(continueTo);
     } catch (err) {
       setError(
         err instanceof AuthError && err.status === 401
@@ -40,7 +50,7 @@ export function LoginPage() {
           <p className="m-0 text-muted">
             {session.user.name} · {ROLE_LABEL[session.user.role]}
           </p>
-          <Link className={btn} to="/">
+          <Link className={btn} to={continueTo}>
             Continuar
           </Link>
         </section>
