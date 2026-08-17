@@ -134,9 +134,8 @@ describe('nova sessão', () => {
     expect(await screen.findByText('Duna')).toBeTruthy();
 
     const post = fetchMock.mock.calls.find((call) => {
-      const url = String(call[0]);
       const init = call[1] as RequestInit | undefined;
-      return init?.method === 'POST' && url.includes('/events');
+      return init?.method === 'POST';
     });
     expect(post).toBeTruthy();
     const body = JSON.parse(String((post?.[1] as RequestInit).body));

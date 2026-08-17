@@ -1,5 +1,3 @@
-import { authFetch } from '../auth/auth';
-
 export type EventSummary = {
   id: string;
   tmdbId: number;
@@ -77,8 +75,10 @@ export type CreateEventInput = {
   priceCents: number;
 };
 
-export async function searchMovies(query: string): Promise<MovieHit[]> {
-  const res = await authFetch(`/movies/search?q=${encodeURIComponent(query)}`);
+export async function searchMovies(query: string, accessToken: string): Promise<MovieHit[]> {
+  const res = await fetch(`${apiUrl('/movies/search')}?q=${encodeURIComponent(query)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   if (!res.ok) {
     throw new Error('Não foi possível buscar no TMDb');
   }
@@ -86,10 +86,16 @@ export async function searchMovies(query: string): Promise<MovieHit[]> {
   return body.results;
 }
 
-export async function createEvent(input: CreateEventInput): Promise<EventSummary> {
-  const res = await authFetch('/events', {
+export async function createEvent(
+  input: CreateEventInput,
+  accessToken: string,
+): Promise<EventSummary> {
+  const res = await fetch(apiUrl('/events'), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(input),
   });
   if (!res.ok) {

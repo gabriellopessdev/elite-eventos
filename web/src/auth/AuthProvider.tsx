@@ -1,43 +1,22 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  commitSession,
-  hydrateSession,
-  isAccessExpired,
-  loadSession,
-  loginRequest,
-  logoutRequest,
-  subscribeSession,
-} from './auth';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { loadSession, loginRequest, logoutRequest, saveSession } from './auth';
 import { AuthContext } from './context';
 
-function sessionIfAccessLive() {
-  const session = loadSession();
-  if (!session || isAccessExpired(session.accessToken)) {
-    return null;
-  }
-  return session;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState(sessionIfAccessLive);
-
-  useEffect(() => {
-    const unsub = subscribeSession(setSession);
-    void hydrateSession();
-    return unsub;
-  }, []);
+  const [session, setSession] = useState(() => loadSession());
 
   const login = useCallback(async (email: string, password: string) => {
     const next = await loginRequest(email, password);
-    commitSession(next);
+    saveSession(next);
+    setSession(next);
   }, []);
 
   const logout = useCallback(async () => {
-    const refreshToken = session?.refreshToken;
-    if (refreshToken) {
-      await logoutRequest(refreshToken);
+    if (session?.refreshToken) {
+      await logoutRequest(session.refreshToken);
     }
-    commitSession(null);
+    saveSession(null);
+    setSession(null);
   }, [session]);
 
   const value = useMemo(() => ({ session, login, logout }), [session, login, logout]);
