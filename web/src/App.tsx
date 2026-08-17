@@ -1,11 +1,24 @@
 import { Link, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthProvider';
 import { useAuth } from './auth/useAuth';
-import { ROLE_LABEL } from './auth/auth';
+import { ROLE_LABEL, type Role } from './auth/auth';
 import { LoginPage } from './LoginPage';
 import { Home } from './Home';
 import { EventsPage } from './events/EventsPage';
 import { btn, btnGhost, island } from './ui';
+
+const NAV_BY_ROLE: Record<Role | 'GUEST', ReadonlyArray<{ to: string; label: string }>> = {
+  GUEST: [{ to: '/events', label: 'Eventos' }],
+  CUSTOMER: [
+    { to: '/events', label: 'Eventos' },
+    { to: '/tickets', label: 'Ingressos' },
+  ],
+  ORGANIZER: [
+    { to: '/events', label: 'Eventos' },
+    { to: '/events/new', label: 'Nova sessão' },
+  ],
+  DOOR: [{ to: '/door', label: 'Validar' }],
+};
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex flex-1 flex-col items-center gap-1 text-[11px] font-bold md:flex-none md:text-sm ${
@@ -14,22 +27,15 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 
 function NavItems() {
   const { session } = useAuth();
+  const items = NAV_BY_ROLE[session?.user.role ?? 'GUEST'];
 
   return (
     <>
-      <NavLink className={navClass} to="/events">
-        Eventos
-      </NavLink>
-      {session ? (
-        <>
-          <NavLink className={navClass} to="/tickets">
-            Ingressos
-          </NavLink>
-          <NavLink className={navClass} to="/door">
-            Portaria
-          </NavLink>
-        </>
-      ) : null}
+      {items.map((item) => (
+        <NavLink key={item.to} className={navClass} to={item.to}>
+          {item.label}
+        </NavLink>
+      ))}
     </>
   );
 }
@@ -148,6 +154,7 @@ function AppRoutes() {
       <Route element={<Shell />}>
         <Route path="/" element={<Home />} />
         <Route path="/events" element={<EventsPage />} />
+        <Route path="/events/new" element={<Placeholder title="Nova sessão" />} />
         <Route path="/events/:id" element={<Placeholder title="Sessão" />} />
         <Route path="/tickets" element={<Placeholder title="Meus ingressos" />} />
         <Route path="/door" element={<Placeholder title="Portaria" />} />
