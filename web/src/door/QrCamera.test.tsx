@@ -17,7 +17,7 @@ describe('QrCamera', () => {
 
     render(<QrCamera enabled onCode={vi.fn()} />);
 
-    expect(await screen.findByText('Câmera indisponível — cole o código.')).toBeTruthy();
+    expect(await screen.findByText('Câmera indisponível — cole o código abaixo.')).toBeTruthy();
     expect(getUserMedia).toHaveBeenCalledWith({
       video: { facingMode: 'environment' },
       audio: false,
@@ -36,6 +36,6 @@ describe('QrCamera', () => {
 
     expect(getUserMedia).not.toHaveBeenCalled();
     expect(document.querySelector('video')).toBeNull();
-    expect(screen.queryByText('Câmera indisponível — cole o código.')).toBeNull();
+    expect(screen.queryByText('Câmera indisponível — cole o código abaixo.')).toBeNull();
   });
 });
