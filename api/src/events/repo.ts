@@ -1,5 +1,7 @@
-import { EventStatus, Prisma, SeatStatus } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+import { EventStatus, Prisma, SeatStatus, TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
+import { signTicketId } from '../tickets/qr.js';
 
 /** Same 8×10 as the decorative home map. Hold/lock is slice 3. */
 export const SEAT_ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const;
@@ -35,6 +37,15 @@ export class HoldValidationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'HoldValidationError';
+  }
+}
+
+export class CheckoutRejectedError extends Error {
+  constructor(
+    message = 'Pagamento recusado (simulação ~25% para a demo — não é bug). Tente de novo.',
+  ) {
+    super(message);
+    this.name = 'CheckoutRejectedError';
   }
 }
 
@@ -200,4 +211,75 @@ export async function getPublishedEvent(id: string) {
 /** Same as getPublishedEvent — Task 3 can keep calling getEvent. */
 export async function getEvent(id: string) {
   return getPublishedEvent(id);
+}
+
+export type CheckoutHoldInput = {
+  eventId: string;
+  userId: string;
+  /** Injectable for tests. Default Math.random; < 0.25 → CheckoutRejectedError. */
+  random?: () => number;
+};
+
+const ticketCheckoutInclude = {
+  event: { select: { id: true, title: true, posterPath: true, startsAt: true } },
+  seat: { select: { row: true, number: true } },
+} as const;
+
+/**
+ * Simulated payment on the caller's active hold.
+ * Fail (~25%) leaves seats HELD. Success → SOLD + one Ticket per seat.
+ */
+export async function checkoutHold({
+  eventId,
+  userId,
+  random = Math.random,
+}: CheckoutHoldInput) {
+  await releaseExpiredSeats();
+
+  const held = await prisma.seat.findMany({
+    where: {
+      eventId,
+      heldById: userId,
+      status: SeatStatus.HELD,
+      heldUntil: { gt: new Date() },
+    },
+    orderBy: [{ row: 'asc' }, { number: 'asc' }],
+  });
+
+  if (held.length === 0) {
+    throw new HoldValidationError('No active hold for this event');
+  }
+
+  if (random() < 0.25) {
+    throw new CheckoutRejectedError();
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const tickets = [];
+    for (const seat of held) {
+      await tx.seat.update({
+        where: { id: seat.id },
+        data: {
+          status: SeatStatus.SOLD,
+          heldById: null,
+          heldUntil: null,
+        },
+      });
+
+      const id = randomUUID();
+      const ticket = await tx.ticket.create({
+        data: {
+          id,
+          eventId,
+          seatId: seat.id,
+          userId,
+          code: signTicketId(id),
+          status: TicketStatus.UNUSED,
+        },
+        include: ticketCheckoutInclude,
+      });
+      tickets.push(ticket);
+    }
+    return tickets;
+  });
 }

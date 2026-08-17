@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import { authRoutes } from './auth/routes.js';
 import { movieRoutes } from './movies/routes.js';
 import { eventRoutes } from './events/routes.js';
+import { ticketRoutes } from './tickets/routes.js';
 
 function corsOrigin() {
   const raw = process.env.WEB_ORIGIN;
@@ -27,6 +28,7 @@ export function buildApp() {
   app.register(authRoutes);
   app.register(movieRoutes);
   app.register(eventRoutes);
+  app.register(ticketRoutes);
 
   return app;
 }

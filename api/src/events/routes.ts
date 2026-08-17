@@ -3,6 +3,8 @@ import { Role, SeatStatus, type Seat } from '@prisma/client';
 import { verifyAccessToken } from '../auth/jwt.js';
 import { requireRole } from '../auth/require-auth.js';
 import {
+  CheckoutRejectedError,
+  checkoutHold,
   createEvent,
   getEvent,
   HoldConflictError,
@@ -194,6 +196,32 @@ export async function eventRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       await releaseHold({ eventId: id, userId });
       return reply.code(204).send();
+    },
+  );
+
+  app.post(
+    '/events/:id/checkout',
+    { preHandler: requireRole(Role.CUSTOMER) },
+    async (request, reply) => {
+      const userId = request.auth?.sub;
+      if (!userId) {
+        return reply.code(401).send({ message: 'Missing bearer token' });
+      }
+
+      const { id } = request.params as { id: string };
+
+      try {
+        const tickets = await checkoutHold({ eventId: id, userId });
+        return reply.code(201).send({ tickets });
+      } catch (err) {
+        if (err instanceof CheckoutRejectedError) {
+          return reply.code(402).send({ message: err.message });
+        }
+        if (err instanceof HoldValidationError) {
+          return reply.code(400).send({ message: err.message });
+        }
+        throw err;
+      }
     },
   );
 }

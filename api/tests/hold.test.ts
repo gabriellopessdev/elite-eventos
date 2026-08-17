@@ -6,6 +6,7 @@ import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/auth/password.js';
 
 process.env.JWT_SECRET ??= 'test-jwt-secret-elite-eventos';
+process.env.QR_HMAC_SECRET ??= 'test-qr-hmac-secret';
 
 /** Dedicated users so parallel events.test / hold.test do not race on the same org. */
 const accounts = [
