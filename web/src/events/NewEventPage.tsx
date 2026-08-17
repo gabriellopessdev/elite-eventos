@@ -29,6 +29,8 @@ export function NewEventPage() {
     return <Navigate to="/events" replace />;
   }
 
+  const accessToken = session.accessToken;
+
   async function onSearch(event: FormEvent) {
     event.preventDefault();
     setError(null);
@@ -36,7 +38,7 @@ export function NewEventPage() {
     setMovie(null);
     setSearching(true);
     try {
-      setHits(await searchMovies(query, session.accessToken));
+      setHits(await searchMovies(query, accessToken));
     } catch {
       setError('Não foi possível buscar no TMDb');
     } finally {
@@ -73,7 +75,7 @@ export function NewEventPage() {
           startsAt: when.toISOString(),
           priceCents,
         },
-        session.accessToken,
+        accessToken,
       );
       navigate('/events');
     } catch {
