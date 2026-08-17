@@ -36,7 +36,7 @@ export function NewEventPage() {
     setMovie(null);
     setSearching(true);
     try {
-      setHits(await searchMovies(query, session.accessToken));
+      setHits(await searchMovies(query));
     } catch {
       setError('Não foi possível buscar no TMDb');
     } finally {
@@ -65,16 +65,13 @@ export function NewEventPage() {
     setError(null);
     setPublishing(true);
     try {
-      await createEvent(
-        {
-          tmdbId: movie.tmdbId,
-          title: movie.title,
-          posterPath: movie.posterPath,
-          startsAt: when.toISOString(),
-          priceCents,
-        },
-        session.accessToken,
-      );
+      await createEvent({
+        tmdbId: movie.tmdbId,
+        title: movie.title,
+        posterPath: movie.posterPath,
+        startsAt: when.toISOString(),
+        priceCents,
+      });
       navigate('/events');
     } catch {
       setError('Não foi possível publicar a sessão');

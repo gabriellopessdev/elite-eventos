@@ -49,6 +49,165 @@ export function saveSession(session: Session | null) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
+type SessionListener = (session: Session | null) => void;
+
+let memory: Session | null | undefined;
+let refreshInFlight: Promise<Session | null> | null = null;
+let expiryTimer: ReturnType<typeof setTimeout> | null = null;
+const listeners = new Set<SessionListener>();
+
+export function isAccessExpired(accessToken: string): boolean {
+  const expMs = readAccessExpMs(accessToken);
+  if (expMs === null) {
+    return false;
+  }
+  return expMs <= Date.now();
+}
+
+function readAccessExpMs(accessToken: string): number | null {
+  const parts = accessToken.split('.');
+  if (parts.length !== 3) {
+    return null;
+  }
+  try {
+    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(padded + '='.repeat((4 - (padded.length % 4)) % 4));
+    const payload = JSON.parse(json) as { exp?: number };
+    if (typeof payload.exp !== 'number') {
+      return null;
+    }
+    return payload.exp * 1000;
+  } catch {
+    return null;
+  }
+}
+
+function watchAccessExpiry(session: Session | null) {
+  if (expiryTimer) {
+    clearTimeout(expiryTimer);
+    expiryTimer = null;
+  }
+  if (!session) {
+    return;
+  }
+  const expMs = readAccessExpMs(session.accessToken);
+  if (expMs === null) {
+    return;
+  }
+  expiryTimer = setTimeout(() => {
+    void hydrateSession();
+  }, Math.max(0, expMs - Date.now()));
+}
+
+export function getSession(): Session | null {
+  if (memory === undefined) {
+    memory = loadSession();
+  }
+  return memory;
+}
+
+export function commitSession(session: Session | null) {
+  memory = session;
+  saveSession(session);
+  watchAccessExpiry(session);
+  for (const listener of listeners) {
+    listener(session);
+  }
+}
+
+export function subscribeSession(listener: SessionListener) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function resetAuthSession() {
+  memory = undefined;
+  refreshInFlight = null;
+  if (expiryTimer) {
+    clearTimeout(expiryTimer);
+    expiryTimer = null;
+  }
+}
+
+export async function hydrateSession(): Promise<Session | null> {
+  const session = getSession();
+  if (!session) {
+    return null;
+  }
+  if (!isAccessExpired(session.accessToken)) {
+    watchAccessExpiry(session);
+    return session;
+  }
+  return refreshSession();
+}
+
+export async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  const session = getSession();
+  if (session && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${session.accessToken}`);
+  }
+
+  const res = await fetch(apiUrl(path), { ...init, headers });
+  if (res.status !== 401 || path.startsWith('/auth/')) {
+    return res;
+  }
+
+  const next = await refreshSession();
+  if (!next) {
+    return res;
+  }
+
+  headers.set('Authorization', `Bearer ${next.accessToken}`);
+  return fetch(apiUrl(path), { ...init, headers });
+}
+
+async function refreshSession(): Promise<Session | null> {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async () => {
+    const session = getSession();
+    if (!session) {
+      return null;
+    }
+
+    const res = await fetch(apiUrl('/auth/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: session.refreshToken }),
+    });
+
+    if (!res.ok) {
+      commitSession(null);
+      return null;
+    }
+
+    const tokens = (await res.json()) as { accessToken?: string; refreshToken?: string };
+    if (!tokens.accessToken || !tokens.refreshToken) {
+      commitSession(null);
+      return null;
+    }
+
+    const next: Session = {
+      ...session,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+    commitSession(next);
+    return next;
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
 export class AuthError extends Error {
   constructor(
     message: string,
