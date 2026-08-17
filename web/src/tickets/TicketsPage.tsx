@@ -1,10 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { CinemaStage } from '../cinema';
+import { EmptyNotice, ErrorNotice } from '../chrome/states';
 import { listMyTickets, type Ticket } from '../events/api';
-import { btnMarquee, marqueeGlow, marqueePanel, marqueePill } from '../ui';
+import { btn, skeleton, surface } from '../ui';
 import { TicketStubbook } from './TicketStubbook';
+
+function TicketsSkeleton() {
+  return (
+    <div className="grid gap-2.5" aria-label="Carregando ingressos">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className={`${surface} grid gap-2 p-4`} aria-hidden="true">
+          <div className={`${skeleton} h-4 w-1/2`} />
+          <div className={`${skeleton} h-3 w-1/3`} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function TicketsPage() {
   const { session } = useAuth();
@@ -13,6 +26,13 @@ export function TicketsPage() {
 
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  const retry = useCallback(() => {
+    setError(null);
+    setTickets(null);
+    setAttempt((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     if (role !== 'CUSTOMER' || !accessToken) return;
@@ -32,80 +52,43 @@ export function TicketsPage() {
     return () => {
       cancelled = true;
     };
-  }, [role, accessToken]);
+  }, [role, accessToken, attempt]);
 
-  if (role !== 'CUSTOMER') {
-    return (
-      <CinemaStage>
-        <div className={marqueePanel} style={marqueeGlow}>
-          <p className={marqueePill}>Ingressos</p>
-          <h1 className="m-0 max-w-[16ch] text-[clamp(2.1rem,6vw,3.6rem)] font-extrabold tracking-tight text-white">
-            Meus ingressos
-          </h1>
-          <p className="m-0 max-w-md text-base text-white/80">
-            Entre como cliente para ver seus ingressos.
-          </p>
+  return (
+    <div className="mx-auto grid w-full max-w-3xl gap-5">
+      {role === 'CUSTOMER' && tickets && tickets.length > 0 ? (
+        <h1 className="m-0 text-[clamp(1.8rem,5vw,2.5rem)] font-extrabold tracking-tight">
+          Meus ingressos
+        </h1>
+      ) : null}
+
+      {role !== 'CUSTOMER' ? (
+        <EmptyNotice
+          title="Meus ingressos"
+          description="Entre como cliente para ver seus ingressos."
+        >
           {!session ? (
-            <Link className={btnMarquee} to="/login">
+            <Link className={btn} to="/login">
               Entrar
             </Link>
           ) : null}
-        </div>
-      </CinemaStage>
-    );
-  }
-
-  if (error) {
-    return (
-      <CinemaStage>
-        <div className={marqueePanel} style={marqueeGlow}>
-          <p className="m-0 text-base text-white" role="alert">
-            {error}
-          </p>
-        </div>
-      </CinemaStage>
-    );
-  }
-
-  if (tickets === null) {
-    return (
-      <CinemaStage>
-        <div className={marqueePanel} style={marqueeGlow}>
-          <p className="m-0 text-base text-white/80">Carregando ingressos…</p>
-        </div>
-      </CinemaStage>
-    );
-  }
-
-  if (tickets.length === 0) {
-    return (
-      <CinemaStage>
-        <div className={marqueePanel} style={marqueeGlow}>
-          <h1 className="m-0 max-w-[14ch] text-[clamp(2.1rem,6vw,3.6rem)] font-extrabold tracking-tight text-white">
-            Meus ingressos
-          </h1>
-          <p className="m-0 max-w-md text-base text-white/80">
-            Você ainda não tem ingressos. Escolha uma sessão no cartaz.
-          </p>
-          <Link className={btnMarquee} to="/events">
+        </EmptyNotice>
+      ) : error ? (
+        <ErrorNotice message={error} onRetry={retry} />
+      ) : tickets === null ? (
+        <TicketsSkeleton />
+      ) : tickets.length === 0 ? (
+        <EmptyNotice
+          title="Meus ingressos"
+          description="Você ainda não tem ingressos. Escolha uma sessão no cartaz."
+        >
+          <Link className={btn} to="/events">
             Ver cartaz
           </Link>
-        </div>
-      </CinemaStage>
-    );
-  }
-
-  return (
-    <CinemaStage contentClassName="items-start justify-center">
-      <div className="mx-auto grid w-full max-w-3xl gap-4">
-        <header className="grid justify-items-center gap-1 text-center">
-          <h1 className="m-0 text-[clamp(1.6rem,4.5vw,2.4rem)] font-extrabold tracking-tight text-white">
-            Meus ingressos
-          </h1>
-        </header>
-
+        </EmptyNotice>
+      ) : (
         <TicketStubbook tickets={tickets} />
-      </div>
-    </CinemaStage>
+      )}
+    </div>
   );
 }

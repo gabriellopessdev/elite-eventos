@@ -1,7 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import QRCode from 'qrcode';
 import { formatSessionWhen, type Ticket } from '../events/api';
-import { marqueeGlow } from '../ui';
+import { badgeOk, badgeUsed, skeleton, surface, surfaceHigh } from '../ui';
+import { CheckIcon, ChevronIcon } from '../icons';
 
 const statusLabel: Record<Ticket['status'], string> = {
   UNUSED: 'Não usado',
@@ -40,12 +41,12 @@ function pickInitialOpen(nights: SessionNight[], preferred?: string): string | n
   return withUnused?.eventId ?? nights[0]?.eventId ?? null;
 }
 
-function TicketQr({ code }: { code: string }) {
+function TicketQr({ code, used }: { code: string; used: boolean }) {
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    QRCode.toDataURL(code, { margin: 1, width: 112 })
+    QRCode.toDataURL(code, { margin: 1, width: 176 })
       .then((url) => {
         if (!cancelled) setSrc(url);
       })
@@ -59,22 +60,22 @@ function TicketQr({ code }: { code: string }) {
 
   if (!src) {
     return (
-      <div
-        className="size-28 rounded-md bg-white/15"
-        aria-hidden="true"
-        data-testid="qr-placeholder"
-      />
+      <div className={`${skeleton} size-22`} aria-hidden="true" data-testid="qr-placeholder" />
     );
   }
 
   return (
-    <img
-      src={src}
-      alt={`QR do ingresso ${code}`}
-      className="size-28 rounded-md bg-white p-0.5"
-      width={112}
-      height={112}
-    />
+    <div className="relative flex">
+      <img
+        src={src}
+        alt={`QR do ingresso ${code}`}
+        className="size-22 rounded-md bg-white p-1"
+        width={88}
+        height={88}
+      />
+      {/* Usado: o QR fica velado, para ninguém tentar ler de novo na fila. */}
+      {used ? <div className="absolute inset-0 rounded-md bg-surface-high/65" /> : null}
+    </div>
   );
 }
 
@@ -99,41 +100,40 @@ export function TicketStubbook({ tickets, defaultExpandedEventId }: TicketStubbo
   }
 
   return (
-    <div className="grid gap-2" role="list">
+    <div className="grid gap-2.5" role="list">
       {nights.map((night) => {
         const open = openEventId === night.eventId;
         const panelId = `${baseId}-panel-${night.eventId}`;
         const triggerId = `${baseId}-trigger-${night.eventId}`;
         const count = night.tickets.length;
         const when = night.startsAt ? formatSessionWhen(night.startsAt) : null;
-        const summary = when ? `${night.title} · ${when}` : night.title;
 
         return (
           <section
             key={night.eventId}
             role="listitem"
-            className="grid gap-0 overflow-hidden rounded-2xl border border-[#c4b5ff]/80"
-            style={marqueeGlow}
+            className={`${open ? surfaceHigh : surface} grid gap-0 overflow-hidden`}
           >
             <h2 className="m-0">
               <button
                 type="button"
                 id={triggerId}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 border-0 bg-transparent px-3.5 py-2.5 text-left md:px-4 md:py-3"
+                className="flex min-h-14 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-4 py-3 text-left"
                 aria-expanded={open}
                 aria-controls={panelId}
                 onClick={() => toggle(night.eventId)}
               >
-                <span className="min-w-0 flex-1 truncate text-sm font-extrabold tracking-tight text-white md:text-base">
-                  {summary}
-                  <span className="font-semibold text-white/65">
-                    {' '}
-                    · {count} {count === 1 ? 'ingresso' : 'ingressos'}
+                <span className="grid min-w-0 flex-1 gap-0.5">
+                  <span className="truncate font-bold tracking-tight text-ink">{night.title}</span>
+                  <span className="truncate text-[13px] text-faint">
+                    {when ? `${when} · ` : ''}
+                    {count} {count === 1 ? 'ingresso' : 'ingressos'}
                   </span>
                 </span>
-                <span className="shrink-0 text-base font-bold text-[#c4b5ff]" aria-hidden="true">
-                  {open ? '▾' : '▸'}
-                </span>
+                <ChevronIcon
+                  size={20}
+                  className={`shrink-0 ${open ? 'rotate-90 text-lavender' : 'text-faint'}`}
+                />
               </button>
             </h2>
 
@@ -142,25 +142,31 @@ export function TicketStubbook({ tickets, defaultExpandedEventId }: TicketStubbo
                 id={panelId}
                 role="region"
                 aria-labelledby={triggerId}
-                className="grid gap-2 border-t border-white/15 px-3 py-3 md:px-4"
+                className="grid gap-2 border-t border-line px-3 py-3 md:px-4"
               >
                 <ul className="m-0 grid list-none gap-2 p-0">
-                  {night.tickets.map((ticket) => (
-                    <li
-                      key={ticket.id}
-                      className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-xl border border-white/20 bg-black/25 px-3 py-2.5 text-left"
-                    >
-                      <TicketQr code={ticket.code} />
-                      <div className="grid gap-0.5">
-                        <p className="m-0 text-base font-extrabold text-white">
-                          Assento {ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '—'}
-                        </p>
-                        <p className="m-0 text-xs font-semibold text-white/75">
-                          {statusLabel[ticket.status]}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
+                  {night.tickets.map((ticket) => {
+                    const used = ticket.status === 'USED';
+                    return (
+                      <li
+                        key={ticket.id}
+                        className={`grid grid-cols-[auto_1fr] items-center gap-4 rounded-xl border border-line bg-surface px-3 py-3 text-left ${
+                          used ? 'opacity-70' : ''
+                        }`}
+                      >
+                        <TicketQr code={ticket.code} used={used} />
+                        <div className="grid justify-items-start gap-1.5">
+                          <p className="m-0 text-xl font-extrabold text-ink">
+                            Assento {ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '—'}
+                          </p>
+                          <span className={used ? badgeUsed : badgeOk}>
+                            {used ? null : <CheckIcon size={14} strokeWidth={2.5} />}
+                            {statusLabel[ticket.status]}
+                          </span>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ) : null}
