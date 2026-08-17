@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type MouseEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { CinemaStage } from '../cinema';
@@ -257,6 +257,24 @@ function EventSession({ id }: { id: string }) {
     }
   }
 
+  /** Sucesso: fecha modal sem DELETE (assentos já SOLD) e vai aos ingressos. */
+  function onCheckoutSuccess() {
+    setCheckoutOpen(false);
+    setHeldUntil(null);
+    navigate('/tickets');
+  }
+
+  /**
+   * Abandono SPA: não liberamos no unmount (Strict Mode).
+   * Só DELETE em Cancel/timer (onClose) e ao clicar "Voltar ao cartaz" com modal aberto.
+   */
+  async function onBackToCartaz(e: MouseEvent<HTMLAnchorElement>) {
+    if (!checkoutOpen) return;
+    e.preventDefault();
+    await onCheckoutClose();
+    navigate('/events');
+  }
+
   if (error) {
     return (
       <CinemaStage>
@@ -322,7 +340,11 @@ function EventSession({ id }: { id: string }) {
           </h1>
           <p className="m-0 text-sm text-white/75">{formatSessionWhen(event.startsAt)}</p>
           <p className="m-0 text-lg font-extrabold text-white">{formatPrice(event.priceCents)}</p>
-          <Link className="text-sm font-bold text-white/80 hover:text-white" to="/events">
+          <Link
+            className="text-sm font-bold text-white/80 hover:text-white"
+            to="/events"
+            onClick={(e) => void onBackToCartaz(e)}
+          >
             Voltar ao cartaz
           </Link>
         </div>
@@ -353,13 +375,16 @@ function EventSession({ id }: { id: string }) {
         </div>
       </article>
 
-      {heldUntil ? (
+      {heldUntil && accessToken ? (
         <CheckoutModal
           open={checkoutOpen}
           seats={heldSeats}
           heldUntil={heldUntil}
           priceCents={event.priceCents}
+          eventId={id}
+          accessToken={accessToken}
           onClose={() => void onCheckoutClose()}
+          onSuccess={onCheckoutSuccess}
         />
       ) : null}
     </CinemaStage>

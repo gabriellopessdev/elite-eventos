@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 import { clearSeatSelectionCache, type Seat } from './api';
@@ -164,6 +164,58 @@ describe('detalhe da sessão', () => {
       );
       expect(holdCall).toBeTruthy();
     });
+  });
+
+  it('checkout 201 navega para /tickets sem DELETE hold', async () => {
+    seedCustomer();
+    const heldUntil = new Date(Date.now() + 10 * 60_000).toISOString();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/checkout') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ tickets: [{ id: 't1', eventId: 'evt-dune', seatId: 'seat-0' }] }),
+        };
+      }
+      if (url.includes('/hold') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            seats: [{ id: 'seat-0', row: 'A', number: 1, status: 'HELD', heldUntil }],
+            heldUntil,
+          }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...dune,
+          seats: seats([
+            ['A', 1],
+            ['A', 2],
+          ]),
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('/events/evt-dune');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Pagar' }));
+
+    expect(await screen.findByRole('heading', { name: 'Meus ingressos' })).toBeTruthy();
+
+    const deleteHold = fetchMock.mock.calls.find(
+      ([url, init]) => String(url).includes('/hold') && (init as RequestInit)?.method === 'DELETE',
+    );
+    expect(deleteHold).toBeUndefined();
   });
 
   it('sessão inexistente volta ao cartaz', async () => {
