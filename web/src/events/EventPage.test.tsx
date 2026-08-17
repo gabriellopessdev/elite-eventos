@@ -172,7 +172,7 @@ describe('detalhe da sessão', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
 
     expect(await screen.findByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Checkout' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Confirmar compra' })).toBeTruthy();
 
     await waitFor(() => {
       const holdCall = fetchMock.mock.calls.find(

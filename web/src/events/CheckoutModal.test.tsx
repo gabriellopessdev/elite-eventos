@@ -62,6 +62,24 @@ describe('CheckoutModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('quando o tempo acaba, explica em vez de sumir', async () => {
+    vi.useFakeTimers();
+    const heldUntil = new Date(Date.now() + 2000).toISOString();
+    const onClose = vi.fn();
+
+    renderModal({ heldUntil, onClose });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    expect(onClose).toHaveBeenCalledWith('expired');
+    expect(screen.getByRole('heading', { name: 'O tempo acabou' })).toBeTruthy();
+    expect(screen.getByText(/A1, A2 voltaram/)).toBeTruthy();
+    expect(screen.getByText(/Nada foi cobrado/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Pagar' })).toBeNull();
+  });
+
   it('402 mostra a mensagem do servidor e mantém o modal', async () => {
     const message = 'Pagamento recusado (simulação ~25% para a demo — não é bug). Tente de novo.';
     vi.stubGlobal(

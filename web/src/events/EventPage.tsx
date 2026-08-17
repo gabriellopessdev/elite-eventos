@@ -1,9 +1,9 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { CinemaStage } from '../cinema';
 import { btnMarquee, marqueeGlow, marqueePanel, marqueePill } from '../ui';
-import { CheckoutModal } from './CheckoutModal';
+import { CheckoutModal, type CloseReason } from './CheckoutModal';
 import {
   ApiError,
   archiveEvent,
@@ -158,6 +158,8 @@ function EventSession({ id }: { id: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  /** Um hold só é liberado uma vez, mesmo passando por expirar e depois fechar. */
+  const releasedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,6 +229,7 @@ function EventSession({ id }: { id: string }) {
     setPaying(true);
     try {
       const result = await holdSeats(id, selectedIds, accessToken);
+      releasedRef.current = false;
       setEvent((prev) =>
         prev
           ? { ...prev, seats: mergeHeldSeats(prev.seats, result.seats), myHold: undefined }
@@ -245,19 +248,25 @@ function EventSession({ id }: { id: string }) {
     }
   }
 
-  async function onCheckoutClose() {
+  async function onCheckoutClose(reason: CloseReason) {
     const heldIds = selectedIds;
-    setCheckoutOpen(false);
-    setHeldUntil(null);
-    if (accessToken && role === 'CUSTOMER') {
-      try {
-        await releaseHold(id, accessToken);
-        setEvent((prev) =>
-          prev ? { ...prev, seats: freeHeldSeats(prev.seats, heldIds), myHold: undefined } : prev,
-        );
-      } catch {
-        setActionError('Não foi possível liberar a reserva');
-      }
+
+    /* Expirou: o modal fica montado para explicar o que aconteceu — antes ele
+       sumia sozinho e a pessoa ficava achando que tinha comprado. */
+    if (reason === 'cancel') {
+      setCheckoutOpen(false);
+      setHeldUntil(null);
+    }
+
+    if (!accessToken || role !== 'CUSTOMER' || releasedRef.current) return;
+    releasedRef.current = true;
+    try {
+      await releaseHold(id, accessToken);
+      setEvent((prev) =>
+        prev ? { ...prev, seats: freeHeldSeats(prev.seats, heldIds), myHold: undefined } : prev,
+      );
+    } catch {
+      setActionError('Não foi possível liberar a reserva');
     }
   }
 
@@ -265,6 +274,7 @@ function EventSession({ id }: { id: string }) {
   function onCheckoutSuccess() {
     setCheckoutOpen(false);
     setHeldUntil(null);
+    releasedRef.current = true;
     navigate('/tickets');
   }
 
@@ -275,7 +285,7 @@ function EventSession({ id }: { id: string }) {
   async function onBackToCartaz(e: MouseEvent<HTMLAnchorElement>) {
     if (!checkoutOpen) return;
     e.preventDefault();
-    await onCheckoutClose();
+    await onCheckoutClose('cancel');
     navigate('/events');
   }
 
@@ -419,7 +429,7 @@ function EventSession({ id }: { id: string }) {
           priceCents={event.priceCents}
           eventId={id}
           accessToken={accessToken}
-          onClose={() => void onCheckoutClose()}
+          onClose={(reason) => void onCheckoutClose(reason)}
           onSuccess={onCheckoutSuccess}
         />
       ) : null}
