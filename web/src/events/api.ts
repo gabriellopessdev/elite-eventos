@@ -1,3 +1,5 @@
+import { authFetch } from '../auth/auth';
+
 export type EventSummary = {
   id: string;
   tmdbId: number;
@@ -7,6 +9,19 @@ export type EventSummary = {
   priceCents: number;
   organizerId: string;
   createdAt: string;
+};
+
+export type SeatStatus = 'AVAILABLE' | 'HELD' | 'SOLD';
+
+export type Seat = {
+  id: string;
+  row: string;
+  number: number;
+  status: SeatStatus;
+};
+
+export type EventDetail = EventSummary & {
+  seats: Seat[];
 };
 
 function apiUrl(path: string) {
@@ -38,6 +53,15 @@ export async function listEvents(): Promise<EventSummary[]> {
   return body.events;
 }
 
+export async function getEvent(id: string): Promise<EventDetail | null> {
+  const res = await fetch(apiUrl(`/events/${id}`));
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    throw new Error('Não foi possível carregar a sessão');
+  }
+  return res.json() as Promise<EventDetail>;
+}
+
 export type MovieHit = {
   tmdbId: number;
   title: string;
@@ -53,10 +77,8 @@ export type CreateEventInput = {
   priceCents: number;
 };
 
-export async function searchMovies(query: string, accessToken: string): Promise<MovieHit[]> {
-  const res = await fetch(`${apiUrl('/movies/search')}?q=${encodeURIComponent(query)}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+export async function searchMovies(query: string): Promise<MovieHit[]> {
+  const res = await authFetch(`/movies/search?q=${encodeURIComponent(query)}`);
   if (!res.ok) {
     throw new Error('Não foi possível buscar no TMDb');
   }
@@ -64,16 +86,10 @@ export async function searchMovies(query: string, accessToken: string): Promise<
   return body.results;
 }
 
-export async function createEvent(
-  input: CreateEventInput,
-  accessToken: string,
-): Promise<EventSummary> {
-  const res = await fetch(apiUrl('/events'), {
+export async function createEvent(input: CreateEventInput): Promise<EventSummary> {
+  const res = await authFetch('/events', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (!res.ok) {
