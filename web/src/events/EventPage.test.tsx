@@ -241,9 +241,8 @@ describe('detalhe da sessão', () => {
     expect(deleteHold).toBeUndefined();
   });
 
-  it('dono ORGANIZER vê Encerrar sessão e arquiva com confirm', async () => {
+  it('dono ORGANIZER confirma no diálogo antes de encerrar', async () => {
     seedOrganizer('org-1');
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes('/archive') && init?.method === 'POST') {
@@ -278,6 +277,17 @@ describe('detalhe da sessão', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Encerrar sessão' }));
 
+    // Um clique só não arquiva: o diálogo pede confirmação.
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).includes('/archive') && (init as RequestInit)?.method === 'POST',
+      ),
+    ).toBe(false);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Encerrar sessão' }));
+
     await waitFor(() => {
       const archiveCall = fetchMock.mock.calls.find(
         ([url, init]) =>
@@ -285,7 +295,6 @@ describe('detalhe da sessão', () => {
       );
       expect(archiveCall).toBeTruthy();
     });
-    expect(confirmSpy).toHaveBeenCalled();
     expect(
       await screen.findByText(/cartaz abre em breve|Em cartaz|Carregando sessões/i),
     ).toBeTruthy();

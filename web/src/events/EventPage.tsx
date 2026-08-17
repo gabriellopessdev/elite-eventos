@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { CinemaStage } from '../cinema';
 import { EmptyNotice, ErrorNotice } from '../chrome/states';
+import { ConfirmDialog } from '../chrome/ConfirmDialog';
 import {
   badgeNeutral,
   btn,
@@ -45,7 +46,8 @@ const seatLabel: Record<Seat['status'], string> = {
   SOLD: 'vendido',
 };
 
-const seatSize = 'size-9 md:size-10';
+/** 28px no mobile: é o que faz uma sala de 10 colunas caber em 390px sem rolar. */
+const seatSize = 'size-7 md:size-10';
 
 function seatsByRow(seats: Seat[]) {
   const rows = new Map<string, Seat[]>();
@@ -93,18 +95,20 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
   const rows = seatsByRow(seats);
 
   return (
-    <div className="grid w-full justify-items-center gap-6">
+    <div className="grid w-full min-w-0 justify-items-center gap-5 md:gap-6">
       <div className="grid w-full max-w-lg justify-items-center gap-1.5">
         <div className="h-2 w-full rounded-t-[50%] bg-linear-to-b from-lavender/65 to-transparent" />
         <span className="text-[11px] font-bold tracking-[0.14em] text-faint uppercase">Tela</span>
       </div>
 
-      <div className="-mx-4 w-[calc(100%+2rem)] overflow-x-auto px-4 md:mx-0 md:w-full md:px-0">
-        <div className="mx-auto grid w-max gap-2" role="img" aria-label="Mapa de assentos">
+      {/* min-w-0 é o que faz o overflow valer: sem ele o filho de grid cresce
+          até o conteúdo e a sala vaza da tela em vez de rolar. */}
+      <div className="-mx-4 w-[calc(100%+2rem)] min-w-0 overflow-x-auto px-4 md:mx-0 md:w-full md:px-0">
+        <div className="mx-auto grid w-max gap-1 md:gap-2" role="img" aria-label="Mapa de assentos">
           {rows.map(([row, cells]) => (
-            <div key={row} className="flex items-center gap-2.5">
+            <div key={row} className="flex items-center gap-1 md:gap-2.5">
               <span className="w-4 text-center text-xs font-bold text-faint">{row}</span>
-              <div className="flex gap-2">
+              <div className="flex gap-1 md:gap-2">
                 {cells.map((seat) => {
                   const selected = selectedIds.has(seat.id);
                   const selectable = seat.status === 'AVAILABLE';
@@ -135,7 +139,11 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
                   );
                 })}
               </div>
-              <span className="w-4 text-center text-xs font-bold text-faint">{row}</span>
+              {/* No mobile a fila já está rotulada à esquerda; repetir à direita
+                  só rouba 26px de uma tela que não sobra largura. */}
+              <span className="hidden w-4 text-center text-xs font-bold text-faint md:block">
+                {row}
+              </span>
             </div>
           ))}
         </div>
@@ -173,6 +181,7 @@ function EventSession({ id }: { id: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
   const [attempt, setAttempt] = useState(0);
   /** Um hold só é liberado uma vez, mesmo passando por expirar e depois fechar. */
   const releasedRef = useRef(false);
@@ -313,10 +322,7 @@ function EventSession({ id }: { id: string }) {
 
   async function onArchive() {
     if (!accessToken || role !== 'ORGANIZER') return;
-    const ok = window.confirm(
-      'Encerrar esta sessão? Ela sai do cartaz. Ingressos já emitidos continuam válidos.',
-    );
-    if (!ok) return;
+    setConfirmArchive(false);
 
     setArchiving(true);
     setActionError(null);
@@ -381,7 +387,9 @@ function EventSession({ id }: { id: string }) {
 
   return (
     <CinemaStage contentClassName="items-start justify-center">
-      <article className="mx-auto grid w-full max-w-6xl gap-8 pb-28 md:grid-cols-[minmax(0,17rem)_1fr] md:items-start md:gap-12 md:pb-24">
+      {/* min-w-0 em toda a cadeia: um item de grid/flex cresce até o conteúdo
+          por padrão, e sem isso a sala vaza da tela em vez de rolar. */}
+      <article className="mx-auto grid w-full max-w-6xl min-w-0 gap-8 pb-52 md:grid-cols-[minmax(0,17rem)_1fr] md:items-start md:gap-12 md:pb-24">
         <div className="grid gap-4 md:sticky md:top-28">
           <Link
             className={`${btnQuiet} justify-self-start`}
@@ -427,7 +435,7 @@ function EventSession({ id }: { id: string }) {
               type="button"
               className={`${btnGhost} min-h-10 justify-self-start text-sm disabled:cursor-not-allowed disabled:opacity-60`}
               disabled={archiving}
-              onClick={() => void onArchive()}
+              onClick={() => setConfirmArchive(true)}
             >
               {archiving ? 'Encerrando…' : 'Encerrar sessão'}
             </button>
@@ -445,14 +453,15 @@ function EventSession({ id }: { id: string }) {
       </article>
 
       {/* Resumo fixo: a contagem e o total acompanham o dedo em vez de ficarem
-          acima da dobra, atrás do mapa. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:bottom-4 md:mx-auto md:max-w-3xl md:rounded-2xl md:border md:px-6 md:pb-3">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="text-[13px] text-muted">
+          acima da dobra, atrás do mapa. No mobile ele se apoia na tab bar (4rem
+          + safe area) em vez de disputar o mesmo rodapé. */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-md md:bottom-4 md:mx-auto md:max-w-3xl md:rounded-2xl md:border md:px-6">
+        <div className="mx-auto grid max-w-6xl gap-3 md:flex md:items-center md:justify-between md:gap-8">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:justify-start">
+            <span className="text-[13px] whitespace-nowrap text-muted">
               {selectedIds.length} de {MAX_SEATS} assentos
             </span>
-            <span className="flex flex-wrap gap-1.5">
+            <span className="flex flex-wrap justify-end gap-1.5">
               {heldSeats.map((seat) => (
                 <span key={seat.id} className={badgeNeutral}>
                   {seat.row}
@@ -461,8 +470,8 @@ function EventSession({ id }: { id: string }) {
               ))}
             </span>
           </div>
-          <div className="flex flex-1 items-center justify-end gap-4">
-            <span className="grid justify-items-end">
+          <div className="flex items-center justify-between gap-4">
+            <span className="grid md:justify-items-end">
               <span className="text-[13px] text-faint">Total</span>
               <span className="text-xl font-extrabold tabular-nums">
                 {formatPrice(event.priceCents * selectedIds.length)}
@@ -470,7 +479,7 @@ function EventSession({ id }: { id: string }) {
             </span>
             <button
               type="button"
-              className={`${btn} min-h-13 px-6 text-base`}
+              className={`${btn} min-h-13 shrink-0 px-5 text-base md:px-6`}
               disabled={!canPay}
               onClick={() => void onPay()}
             >
@@ -479,6 +488,17 @@ function EventSession({ id }: { id: string }) {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmArchive}
+        title="Encerrar esta sessão?"
+        description="Ela sai do cartaz e ninguém mais compra. Os ingressos já emitidos continuam válidos na portaria."
+        confirmLabel={archiving ? 'Encerrando…' : 'Encerrar sessão'}
+        cancelLabel="Manter no cartaz"
+        pending={archiving}
+        onConfirm={() => void onArchive()}
+        onCancel={() => setConfirmArchive(false)}
+      />
 
       {heldUntil && accessToken && checkoutOpen ? (
         <CheckoutModal
