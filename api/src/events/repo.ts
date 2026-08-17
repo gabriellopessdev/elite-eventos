@@ -49,6 +49,20 @@ export class CheckoutRejectedError extends Error {
   }
 }
 
+export class ArchiveNotFoundError extends Error {
+  constructor(message = 'Event not found') {
+    super(message);
+    this.name = 'ArchiveNotFoundError';
+  }
+}
+
+export class ArchiveForbiddenError extends Error {
+  constructor(message = 'Not the event organizer') {
+    super(message);
+    this.name = 'ArchiveForbiddenError';
+  }
+}
+
 export function seatGrid() {
   return SEAT_ROWS.flatMap((row) =>
     Array.from({ length: SEATS_PER_ROW }, (_, i) => ({
@@ -281,5 +295,47 @@ export async function checkoutHold({
       tickets.push(ticket);
     }
     return tickets;
+  });
+}
+
+/**
+ * Soft-archive: PUBLISHED → ARCHIVED, free HELD seats, leave SOLD alone.
+ * Missing / already ARCHIVED → ArchiveNotFoundError.
+ * Wrong organizer → ArchiveForbiddenError.
+ */
+export async function archiveEvent({
+  eventId,
+  organizerId,
+}: {
+  eventId: string;
+  organizerId: string;
+}) {
+  return prisma.$transaction(async (tx) => {
+    const event = await tx.event.findUnique({ where: { id: eventId } });
+    if (!event || event.status === EventStatus.ARCHIVED) {
+      throw new ArchiveNotFoundError();
+    }
+    if (event.organizerId !== organizerId) {
+      throw new ArchiveForbiddenError();
+    }
+
+    await tx.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.ARCHIVED },
+    });
+
+    await tx.seat.updateMany({
+      where: {
+        eventId,
+        status: SeatStatus.HELD,
+      },
+      data: {
+        status: SeatStatus.AVAILABLE,
+        heldById: null,
+        heldUntil: null,
+      },
+    });
+
+    return tx.event.findUniqueOrThrow({ where: { id: eventId } });
   });
 }

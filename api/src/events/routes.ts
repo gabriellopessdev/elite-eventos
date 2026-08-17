@@ -3,6 +3,9 @@ import { Role, SeatStatus, type Seat } from '@prisma/client';
 import { verifyAccessToken } from '../auth/jwt.js';
 import { requireRole } from '../auth/require-auth.js';
 import {
+  ArchiveForbiddenError,
+  ArchiveNotFoundError,
+  archiveEvent,
   CheckoutRejectedError,
   checkoutHold,
   createEvent,
@@ -219,6 +222,32 @@ export async function eventRoutes(app: FastifyInstance) {
         }
         if (err instanceof HoldValidationError) {
           return reply.code(400).send({ message: err.message });
+        }
+        throw err;
+      }
+    },
+  );
+
+  app.post(
+    '/events/:id/archive',
+    { preHandler: requireRole(Role.ORGANIZER) },
+    async (request, reply) => {
+      const organizerId = request.auth?.sub;
+      if (!organizerId) {
+        return reply.code(401).send({ message: 'Missing bearer token' });
+      }
+
+      const { id } = request.params as { id: string };
+
+      try {
+        const event = await archiveEvent({ eventId: id, organizerId });
+        return event;
+      } catch (err) {
+        if (err instanceof ArchiveNotFoundError) {
+          return reply.code(404).send({ message: err.message });
+        }
+        if (err instanceof ArchiveForbiddenError) {
+          return reply.code(403).send({ message: err.message });
         }
         throw err;
       }
