@@ -63,4 +63,33 @@ describe('vitrine de sessões', () => {
 
     expect(await screen.findByRole('heading', { name: 'O cartaz abre em breve' })).toBeTruthy();
   });
+
+  it('organizador vê atalho para nova sessão', async () => {
+    localStorage.setItem(
+      'elite.session',
+      JSON.stringify({
+        accessToken: 'access-org',
+        refreshToken: 'refresh-org',
+        user: {
+          id: 'user-org',
+          email: 'org@elite.local',
+          name: 'Organizador Demo',
+          role: 'ORGANIZER',
+        },
+      }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ events: [] }),
+      }),
+    );
+
+    renderAt('/events');
+
+    expect(
+      (await screen.findAllByRole('link', { name: /Nova sessão/ }))[0].getAttribute('href'),
+    ).toBe('/events/new');
+  });
 });

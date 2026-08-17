@@ -9,6 +9,15 @@ export const fieldInput =
 
 export const island = 'rounded-2xl bg-surface shadow-island';
 
+export const chromeBar =
+  'rounded-full border border-white/10 bg-[#120d18]/75 shadow-[0_8px_40px_rgb(105_101_219/0.22)] backdrop-blur-xl';
+
+export const chromeBtn =
+  'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-extrabold text-accent-ink shadow-[0_8px_24px_rgb(105_101_219/0.55)] hover:bg-accent-hover';
+
+export const chromeBtnGhost =
+  'inline-flex min-h-10 items-center justify-center rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white';
+
 export const chip =
   'flex-1 cursor-pointer rounded-xl border px-2 py-2.5 text-center text-sm font-bold';
 

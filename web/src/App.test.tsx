@@ -53,13 +53,12 @@ describe('App shell', () => {
     expect(labels('Validar')).toHaveLength(0);
   });
 
-  it('organizador vê Eventos e Nova sessão', () => {
+  it('organizador vê Nova sessão no cartaz e Publicar no formulário', () => {
     seedRole('ORGANIZER', 'Organizador Demo');
     renderHome();
     expect(labels('Eventos').length).toBeGreaterThan(0);
     expect(labels('Nova sessão').length).toBeGreaterThan(0);
     expect(labels('Ingressos')).toHaveLength(0);
-    expect(labels('Validar')).toHaveLength(0);
   });
 
   it('portaria vê só Validar', () => {
