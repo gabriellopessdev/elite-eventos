@@ -1,32 +1,49 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-canvas: #f6f6f9;
-  --color-surface: #ffffff;
-  --color-surface-high: #f1f0ff;
-  --color-ink: #1b1b1f;
-  --color-muted: #5c5c5c;
+  /* Elevação — os hexes que já existiam no código, agora com papel definido. */
+  --color-canvas: #070414;
+  --color-surface: #150c34;
+  --color-surface-high: #1c1048;
+  --color-surface-top: #241660;
+
+  --color-line: rgb(196 181 255 / 0.16);
+  --color-line-strong: rgb(196 181 255 / 0.34);
+
+  --color-ink: #f4f2ff;
+  --color-muted: #b9b2d8;
+  --color-faint: #9a91bf;
+
   --color-accent: #6965db;
   --color-accent-hover: #5753d0;
   --color-accent-ink: #ffffff;
   --color-brand: #190064;
-  --color-line: #c5c5d0;
-  --color-danger: #db6965;
+  --color-lavender: #c4b5ff;
+
+  --color-danger: #ffb4b4;
+  /* Novas: a portaria precisa de válido/já usado e o app não tinha nenhuma.
+     Mesmo croma do acento, variando só o matiz. */
+  --color-success: oklch(0.7 0.13 158);
+  --color-warn: oklch(0.76 0.13 80);
+
   --font-sans: Assistant, system-ui, sans-serif;
-  --shadow-island:
-    0px 0px 1px 0px rgb(0 0 0 / 0.17), 0px 0px 3px 0px rgb(0 0 0 / 0.08),
-    0px 7px 14px 0px rgb(0 0 0 / 0.05);
+
   --radius-lg: 0.5rem;
   --radius-2xl: 1rem;
+
+  --shadow-elev-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-elev-2: 0 8px 24px rgb(0 0 0 / 0.45);
+  /* Reservado para a ação primária e o assento selecionado. Nada mais. */
+  --shadow-glow: 0 8px 24px rgb(105 101 219 / 0.45);
+
   --background-image-page:
-    radial-gradient(ellipse 80% 50% at 50% -8%, rgb(105 101 219 / 0.28), transparent 58%),
-    radial-gradient(ellipse 55% 40% at 100% 100%, rgb(241 240 255 / 0.95), transparent 52%),
-    linear-gradient(165deg, #ececf4 0%, #f6f6f9 38%, #ffffff 100%);
+    radial-gradient(ellipse 70% 45% at 50% -6%, rgb(105 101 219 / 0.22), transparent 60%),
+    linear-gradient(180deg, #0d0726 0%, #070414 60%);
 }
 
 @layer base {
   html {
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   body {
@@ -35,6 +52,11 @@
   }
 
   a {
-    @apply text-inherit no-underline;
+    @apply text-lavender no-underline hover:text-ink;
+  }
+
+  /* O app não tinha foco visível em lugar nenhum. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-lavender;
   }
 }
