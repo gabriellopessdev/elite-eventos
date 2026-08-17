@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { ApiError, checkout, formatPrice, type Seat } from './api';
 import { btn, btnGhost, hintError, surface } from '../ui';
@@ -87,7 +88,9 @@ export function CheckoutModal({
     }
   }
 
-  return (
+  /* Portal para o body: dentro do CinemaStage (`isolate`) o z-50 ficava preso
+     naquele contexto e a tab bar do mobile pintava por cima do sheet. */
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       role="presentation"
@@ -96,7 +99,7 @@ export function CheckoutModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="checkout-title"
-        className="relative grid w-full max-w-md gap-5 rounded-t-3xl border border-line-strong bg-surface-high px-5 pt-3 pb-6 text-left shadow-elev-2 sm:rounded-2xl sm:p-6"
+        className="relative grid max-h-dvh w-full max-w-md gap-5 overflow-y-auto rounded-t-3xl border border-line-strong bg-surface-high px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-left shadow-elev-2 sm:rounded-2xl sm:p-6"
       >
         <span
           aria-hidden="true"
@@ -189,7 +192,8 @@ export function CheckoutModal({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

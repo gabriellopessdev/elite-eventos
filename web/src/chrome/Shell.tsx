@@ -59,7 +59,7 @@ function ChromeAction({ allowGuest = false }: { allowGuest?: boolean }) {
   if (!session) {
     if (!allowGuest) return null;
     return (
-      <Link className={`${btn} min-h-10 px-4 text-sm`} to="/login">
+      <Link className={`${btn} min-h-10 px-4 text-sm whitespace-nowrap`} to="/login">
         Entrar
       </Link>
     );
@@ -69,17 +69,27 @@ function ChromeAction({ allowGuest = false }: { allowGuest?: boolean }) {
 
   if (pathname === '/events/new') {
     return (
-      <button className={`${btn} min-h-10 px-4 text-sm`} form="publish-session" type="submit">
+      <button
+        className={`${btn} min-h-10 px-4 text-sm whitespace-nowrap`}
+        form="publish-session"
+        type="submit"
+      >
         Publicar
       </button>
     );
   }
 
   if (pathname === '/' || pathname.startsWith('/events')) {
+    /* No mobile o rótulo sai e fica só o "+": com o texto, o botão quebrava em
+       duas linhas e engolia a marca. O nome acessível continua o mesmo. */
     return (
-      <Link className={`${btn} min-h-10 px-4 text-sm`} to="/events/new">
+      <Link
+        className={`${btn} min-h-10 shrink-0 gap-1.5 px-3 text-sm whitespace-nowrap sm:px-4`}
+        to="/events/new"
+        aria-label="Nova sessão"
+      >
         <PlusIcon size={18} />
-        Nova sessão
+        <span className="hidden sm:inline">Nova sessão</span>
       </Link>
     );
   }
@@ -134,8 +144,11 @@ export function Shell() {
       <main
         className={
           stage
-            ? 'min-h-dvh w-full pb-24 md:pb-0'
-            : 'mx-auto w-full max-w-6xl flex-1 px-4 pt-20 pb-24 md:px-6 md:pt-24 md:pb-12'
+            ? /* Header flutua sobre a foto: o CinemaStage já reserva o topo. */
+              'min-h-dvh w-full pb-24 md:pb-0'
+            : /* Header é sticky e ocupa espaço no fluxo — somar pt aqui dobrava
+                 a distância até o título da página. */
+              'mx-auto w-full max-w-6xl flex-1 px-4 pt-4 pb-28 md:px-6 md:pt-6 md:pb-12'
         }
       >
         <Outlet />
