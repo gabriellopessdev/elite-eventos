@@ -98,7 +98,7 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
     <div className="grid w-full min-w-0 justify-items-center gap-5 md:gap-6">
       <div className="grid w-full max-w-lg justify-items-center gap-1.5">
         <div className="h-2 w-full rounded-t-[50%] bg-linear-to-b from-lavender/65 to-transparent" />
-        <span className="text-[11px] font-bold tracking-[0.14em] text-faint uppercase">Tela</span>
+        <span className="text-[11px] font-bold tracking-[0.14em] text-faint uppercase">Selecione os assentos</span>
       </div>
 
       {/* min-w-0 é o que faz o overflow valer: sem ele o filho de grid cresce
@@ -112,9 +112,8 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
                 {cells.map((seat) => {
                   const selected = selectedIds.has(seat.id);
                   const selectable = seat.status === 'AVAILABLE';
-                  const label = `${seat.row}${seat.number} ${
-                    selected ? 'selecionado' : seatLabel[seat.status]
-                  }`;
+                  const label = `${seat.row}${seat.number} ${selected ? 'selecionado' : seatLabel[seat.status]
+                    }`;
                   const tone = selected ? seatTone.selected : statusTone[seat.status];
 
                   if (!selectable) {
