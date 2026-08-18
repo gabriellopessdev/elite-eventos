@@ -133,6 +133,37 @@ describe('TicketsPage', () => {
     expect(screen.getByRole('link', { name: 'Ver cartaz' }).getAttribute('href')).toBe('/events');
   });
 
+  it('filtra por sessão e por status', async () => {
+    seedCustomer();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ tickets: ticketsFixture }),
+      }),
+    );
+
+    renderAt('/tickets');
+    await screen.findByRole('button', { name: /Duna/ });
+
+    // Só a sessão do Oppenheimer.
+    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: 'evt-oppen' } });
+    expect(screen.queryByRole('button', { name: /Duna/ })).toBeNull();
+    expect(screen.getByText('Assento C5')).toBeTruthy();
+
+    // Voltando a todas, o status corta os já usados.
+    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Usados' }));
+    expect(screen.getByText('Assento A2')).toBeTruthy();
+    expect(screen.queryByText('Assento A1')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Oppenheimer/ })).toBeNull();
+
+    // Um recorte sem nenhum ingresso diz isso em vez de sumir com tudo.
+    fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: 'evt-oppen' } });
+    expect(screen.getByText(/Nenhum ingresso bate com os filtros/i)).toBeTruthy();
+  });
+
   it('cliente vê resumo dobrado e abre uma sessão por vez', async () => {
     seedCustomer();
     vi.stubGlobal(

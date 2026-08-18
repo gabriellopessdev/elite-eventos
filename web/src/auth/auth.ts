@@ -19,6 +19,15 @@ export const ROLE_LABEL: Record<Role, string> = {
   DOOR: 'Portaria',
 };
 
+/**
+ * Onde cada papel começa. A portaria não tem nada a fazer no cartaz — a nav
+ * dela só tem "Validar" —, então mandá-la para lá era despejar a pessoa numa
+ * tela que não é a dela e cobrar um toque para chegar no scanner.
+ */
+export function homeRouteFor(role: Role | undefined): string {
+  return role === 'DOOR' ? '/door' : '/events';
+}
+
 export const DEMO_ACCOUNTS = [
   { label: 'Cliente', email: 'cliente1@elite.local', password: 'cli12345' },
   { label: 'Organizador', email: 'org@elite.local', password: 'org12345' },

@@ -104,9 +104,9 @@ describe('detalhe da sessão', () => {
     expect(screen.getByLabelText('B2 disponível')).toBeTruthy();
     expect(screen.getByLabelText('Mapa de assentos')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'A1 disponível' })).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Pagar' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(
+      (screen.getByRole('button', { name: 'Reservar e pagar' }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it('visitante seleciona assento e Pagar vai ao login com next', async () => {
@@ -130,7 +130,7 @@ describe('detalhe da sessão', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
     expect(screen.getByLabelText('A1 selecionado')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reservar e pagar' }));
 
     expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeTruthy();
     expect(screen.getByLabelText('E-mail')).toBeTruthy();
@@ -169,10 +169,10 @@ describe('detalhe da sessão', () => {
     renderAt('/events/evt-dune');
 
     fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reservar e pagar' }));
 
     expect(await screen.findByRole('dialog')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Checkout' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Confirmar compra' })).toBeTruthy();
 
     await waitFor(() => {
       const holdCall = fetchMock.mock.calls.find(
@@ -228,7 +228,7 @@ describe('detalhe da sessão', () => {
     renderAt('/events/evt-dune');
 
     fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pagar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reservar e pagar' }));
     const dialog = await screen.findByRole('dialog');
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Pagar' }));
@@ -241,9 +241,8 @@ describe('detalhe da sessão', () => {
     expect(deleteHold).toBeUndefined();
   });
 
-  it('dono ORGANIZER vê Encerrar sessão e arquiva com confirm', async () => {
+  it('dono ORGANIZER confirma no diálogo antes de encerrar', async () => {
     seedOrganizer('org-1');
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url.includes('/archive') && init?.method === 'POST') {
@@ -278,6 +277,17 @@ describe('detalhe da sessão', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Encerrar sessão' }));
 
+    // Um clique só não arquiva: o diálogo pede confirmação.
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).includes('/archive') && (init as RequestInit)?.method === 'POST',
+      ),
+    ).toBe(false);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Encerrar sessão' }));
+
     await waitFor(() => {
       const archiveCall = fetchMock.mock.calls.find(
         ([url, init]) =>
@@ -285,7 +295,6 @@ describe('detalhe da sessão', () => {
       );
       expect(archiveCall).toBeTruthy();
     });
-    expect(confirmSpy).toHaveBeenCalled();
     expect(
       await screen.findByText(/cartaz abre em breve|Em cartaz|Carregando sessões/i),
     ).toBeTruthy();

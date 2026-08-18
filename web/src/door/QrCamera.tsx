@@ -83,16 +83,26 @@ export function QrCamera({ enabled, ignoreCode, onCode }: QrCameraProps) {
 
   const noMediaApi = typeof navigator.mediaDevices?.getUserMedia !== 'function';
   if (unavailable || noMediaApi) {
-    return <p className="m-0 text-sm text-white/80">Câmera indisponível — cole o código.</p>;
+    return (
+      <p className="m-0 self-start rounded-2xl border border-line bg-surface px-4 py-6 text-center text-sm text-muted">
+        Câmera indisponível — cole o código abaixo.
+      </p>
+    );
   }
 
   return (
-    <video
-      ref={videoRef}
-      className="aspect-video w-full rounded-xl border border-[#c4b5ff]/50 bg-black object-cover"
-      playsInline
-      muted
-      autoPlay
-    />
+    <div className="relative aspect-square overflow-hidden rounded-2xl border border-line bg-black">
+      <video ref={videoRef} className="size-full object-cover" playsInline muted autoPlay />
+      {/* Mira: diz onde encostar o QR sem cobrir a imagem. */}
+      <div className="pointer-events-none absolute inset-x-14 inset-y-12" aria-hidden="true">
+        <span className="absolute top-0 left-0 size-8 rounded-tl-xl border-t-[3px] border-l-[3px] border-lavender" />
+        <span className="absolute top-0 right-0 size-8 rounded-tr-xl border-t-[3px] border-r-[3px] border-lavender" />
+        <span className="absolute bottom-0 left-0 size-8 rounded-bl-xl border-b-[3px] border-l-[3px] border-lavender" />
+        <span className="absolute right-0 bottom-0 size-8 rounded-br-xl border-r-[3px] border-b-[3px] border-lavender" />
+      </div>
+      <p className="pointer-events-none absolute inset-x-0 bottom-3 m-0 text-center text-[13px] font-semibold text-white/75">
+        Aponte para o QR do ingresso
+      </p>
+    </div>
   );
 }

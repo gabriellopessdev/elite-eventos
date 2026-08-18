@@ -1,9 +1,22 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { CinemaStage } from '../cinema';
-import { btnMarquee, marqueeGlow, marqueePanel, marqueePill } from '../ui';
-import { CheckoutModal } from './CheckoutModal';
+import { EmptyNotice, ErrorNotice } from '../chrome/states';
+import { ConfirmDialog } from '../chrome/ConfirmDialog';
+import {
+  badgeNeutral,
+  btn,
+  btnGhost,
+  btnQuiet,
+  hintError,
+  pill,
+  seatBase,
+  seatTone,
+  skeleton,
+} from '../ui';
+import { ChevronIcon, ClockIcon, TicketIcon } from '../icons';
+import { CheckoutModal, type CloseReason } from './CheckoutModal';
 import {
   ApiError,
   archiveEvent,
@@ -21,10 +34,10 @@ import {
 
 const MAX_SEATS = 8;
 
-const seatTone: Record<Seat['status'], string> = {
-  AVAILABLE: 'bg-[#c4b5ff]',
-  HELD: 'bg-[#1c1048]',
-  SOLD: 'bg-[#1c1048]',
+const statusTone: Record<Seat['status'], string> = {
+  AVAILABLE: seatTone.free,
+  HELD: seatTone.held,
+  SOLD: seatTone.sold,
 };
 
 const seatLabel: Record<Seat['status'], string> = {
@@ -32,6 +45,9 @@ const seatLabel: Record<Seat['status'], string> = {
   HELD: 'reservado',
   SOLD: 'vendido',
 };
+
+/** 28px no mobile: é o que faz uma sala de 10 colunas caber em 390px sem rolar. */
+const seatSize = 'size-7 md:size-10';
 
 function seatsByRow(seats: Seat[]) {
   const rows = new Map<string, Seat[]>();
@@ -66,35 +82,48 @@ type SeatMapProps = {
   onToggle: (seat: Seat) => void;
 };
 
+function LegendKey({ tone, children }: { tone: string; children: string }) {
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={`${seatBase} size-4 ${tone}`} aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+
 function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
   const rows = seatsByRow(seats);
 
   return (
-    <div className="grid justify-items-center gap-4">
-      <p className="m-0 w-full max-w-md rounded-full border border-white/40 py-1.5 text-center text-[11px] font-bold tracking-[0.2em] text-white/80 uppercase">
-        Tela
-      </p>
-      <div className="w-full overflow-x-auto">
-        <div className="mx-auto grid w-max gap-1.5" role="img" aria-label="Mapa de assentos">
+    <div className="grid w-full min-w-0 justify-items-center gap-5 md:gap-6">
+      <div className="grid w-full max-w-lg justify-items-center gap-1.5">
+        <div className="h-2 w-full rounded-t-[50%] bg-linear-to-b from-lavender/65 to-transparent" />
+        <span className="text-[11px] font-bold tracking-[0.14em] text-faint uppercase">
+          Selecione os assentos
+        </span>
+      </div>
+
+      {/* min-w-0 é o que faz o overflow valer: sem ele o filho de grid cresce
+          até o conteúdo e a sala vaza da tela em vez de rolar. */}
+      <div className="-mx-4 w-[calc(100%+2rem)] min-w-0 overflow-x-auto px-4 md:mx-0 md:w-full md:px-0">
+        <div className="mx-auto grid w-max gap-1 md:gap-2" role="img" aria-label="Mapa de assentos">
           {rows.map(([row, cells]) => (
-            <div key={row} className="flex items-center gap-2">
-              <span className="w-4 text-center text-xs font-bold text-white/70">{row}</span>
-              <div className="flex gap-1">
+            <div key={row} className="flex items-center gap-1 md:gap-2.5">
+              <span className="w-4 text-center text-xs font-bold text-faint">{row}</span>
+              <div className="flex gap-1 md:gap-2">
                 {cells.map((seat) => {
                   const selected = selectedIds.has(seat.id);
                   const selectable = seat.status === 'AVAILABLE';
                   const label = `${seat.row}${seat.number} ${
                     selected ? 'selecionado' : seatLabel[seat.status]
                   }`;
-                  const tone = selected
-                    ? 'bg-white ring-2 ring-white ring-offset-1 ring-offset-[#1c1048]'
-                    : seatTone[seat.status];
+                  const tone = selected ? seatTone.selected : statusTone[seat.status];
 
                   if (!selectable) {
                     return (
                       <span
                         key={seat.id}
-                        className={`size-6 rounded-md md:size-7 ${tone}`}
+                        className={`${seatBase} ${seatSize} ${tone}`}
                         aria-label={label}
                       />
                     );
@@ -104,7 +133,7 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
                     <button
                       key={seat.id}
                       type="button"
-                      className={`size-6 cursor-pointer rounded-md border-0 p-0 md:size-7 ${tone}`}
+                      className={`${seatBase} ${seatSize} ${tone}`}
                       aria-label={label}
                       aria-pressed={selected}
                       onClick={() => onToggle(seat)}
@@ -112,27 +141,23 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
                   );
                 })}
               </div>
-              <span className="w-4 text-center text-xs font-bold text-white/70">{row}</span>
+              {/* No mobile a fila já está rotulada à esquerda; repetir à direita
+                  só rouba 26px de uma tela que não sobra largura. */}
+              <span className="hidden w-4 text-center text-xs font-bold text-faint md:block">
+                {row}
+              </span>
             </div>
           ))}
         </div>
       </div>
-      <p className="m-0 flex flex-wrap items-center justify-center gap-3 text-xs font-semibold text-white/70">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-3 rounded-sm bg-[#c4b5ff]" aria-hidden="true" />
-          Livre
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            className="size-3 rounded-sm bg-white ring-1 ring-white ring-offset-1 ring-offset-[#1c1048]"
-            aria-hidden="true"
-          />
-          Selecionado
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-3 rounded-sm bg-[#1c1048]" aria-hidden="true" />
-          Ocupado
-        </span>
+
+      {/* Quatro estados, cada um com preenchimento próprio: antes reservado e
+          vendido eram a mesma cor, e nenhum dos dois se distinguia do fundo. */}
+      <p className="m-0 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-semibold text-muted">
+        <LegendKey tone={seatTone.free}>Livre</LegendKey>
+        <LegendKey tone="border-white bg-white">Seu</LegendKey>
+        <LegendKey tone={seatTone.held}>Reservado</LegendKey>
+        <LegendKey tone={seatTone.sold}>Vendido</LegendKey>
       </p>
     </div>
   );
@@ -158,6 +183,16 @@ function EventSession({ id }: { id: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  /** Um hold só é liberado uma vez, mesmo passando por expirar e depois fechar. */
+  const releasedRef = useRef(false);
+
+  function retry() {
+    setError(null);
+    setEvent(undefined);
+    setAttempt((n) => n + 1);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -195,7 +230,7 @@ function EventSession({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [id, accessToken, role]);
+  }, [id, accessToken, role, attempt]);
 
   function toggleSeat(seat: Seat) {
     if (seat.status !== 'AVAILABLE') return;
@@ -227,6 +262,7 @@ function EventSession({ id }: { id: string }) {
     setPaying(true);
     try {
       const result = await holdSeats(id, selectedIds, accessToken);
+      releasedRef.current = false;
       setEvent((prev) =>
         prev
           ? { ...prev, seats: mergeHeldSeats(prev.seats, result.seats), myHold: undefined }
@@ -245,19 +281,25 @@ function EventSession({ id }: { id: string }) {
     }
   }
 
-  async function onCheckoutClose() {
+  async function onCheckoutClose(reason: CloseReason) {
     const heldIds = selectedIds;
-    setCheckoutOpen(false);
-    setHeldUntil(null);
-    if (accessToken && role === 'CUSTOMER') {
-      try {
-        await releaseHold(id, accessToken);
-        setEvent((prev) =>
-          prev ? { ...prev, seats: freeHeldSeats(prev.seats, heldIds), myHold: undefined } : prev,
-        );
-      } catch {
-        setActionError('Não foi possível liberar a reserva');
-      }
+
+    /* Expirou: o modal fica montado para explicar o que aconteceu — antes ele
+       sumia sozinho e a pessoa ficava achando que tinha comprado. */
+    if (reason === 'cancel') {
+      setCheckoutOpen(false);
+      setHeldUntil(null);
+    }
+
+    if (!accessToken || role !== 'CUSTOMER' || releasedRef.current) return;
+    releasedRef.current = true;
+    try {
+      await releaseHold(id, accessToken);
+      setEvent((prev) =>
+        prev ? { ...prev, seats: freeHeldSeats(prev.seats, heldIds), myHold: undefined } : prev,
+      );
+    } catch {
+      setActionError('Não foi possível liberar a reserva');
     }
   }
 
@@ -265,6 +307,7 @@ function EventSession({ id }: { id: string }) {
   function onCheckoutSuccess() {
     setCheckoutOpen(false);
     setHeldUntil(null);
+    releasedRef.current = true;
     navigate('/tickets');
   }
 
@@ -275,16 +318,13 @@ function EventSession({ id }: { id: string }) {
   async function onBackToCartaz(e: MouseEvent<HTMLAnchorElement>) {
     if (!checkoutOpen) return;
     e.preventDefault();
-    await onCheckoutClose();
+    await onCheckoutClose('cancel');
     navigate('/events');
   }
 
   async function onArchive() {
     if (!accessToken || role !== 'ORGANIZER') return;
-    const ok = window.confirm(
-      'Encerrar esta sessão? Ela sai do cartaz. Ingressos já emitidos continuam válidos.',
-    );
-    if (!ok) return;
+    setConfirmArchive(false);
 
     setArchiving(true);
     setActionError(null);
@@ -301,10 +341,8 @@ function EventSession({ id }: { id: string }) {
   if (error) {
     return (
       <CinemaStage>
-        <div className={marqueePanel} style={marqueeGlow}>
-          <p className="m-0 text-base text-white" role="alert">
-            {error}
-          </p>
+        <div className="w-full max-w-md">
+          <ErrorNotice message={error} onRetry={retry} />
         </div>
       </CinemaStage>
     );
@@ -313,8 +351,13 @@ function EventSession({ id }: { id: string }) {
   if (event === undefined) {
     return (
       <CinemaStage>
-        <div className={marqueePanel} style={marqueeGlow}>
-          <p className="m-0 text-base text-white/80">Carregando sessão…</p>
+        <div className="grid w-full max-w-3xl gap-8 md:grid-cols-[minmax(0,16rem)_1fr]">
+          <div className={`${skeleton} aspect-2/3 w-40 justify-self-center md:w-full`} />
+          <div className="grid content-start gap-3">
+            <div className={`${skeleton} h-8 w-3/5`} />
+            <div className={`${skeleton} h-4 w-2/5`} />
+            <div className={`${skeleton} mt-4 h-56 w-full`} />
+          </div>
         </div>
       </CinemaStage>
     );
@@ -323,14 +366,15 @@ function EventSession({ id }: { id: string }) {
   if (event === null) {
     return (
       <CinemaStage>
-        <div className={marqueePanel} style={marqueeGlow}>
-          <p className={marqueePill}>Sessão</p>
-          <h1 className="m-0 text-[clamp(2.1rem,6vw,3.6rem)] font-extrabold tracking-tight text-white">
-            Sessão não encontrada
-          </h1>
-          <Link className="text-sm font-bold text-white/80 hover:text-white" to="/events">
-            Voltar ao cartaz
-          </Link>
+        <div className="w-full max-w-md">
+          <EmptyNotice
+            title="Sessão não encontrada"
+            description="Ela pode ter sido encerrada pelo organizador."
+          >
+            <Link className={btn} to="/events">
+              Voltar ao cartaz
+            </Link>
+          </EmptyNotice>
         </div>
       </CinemaStage>
     );
@@ -345,70 +389,118 @@ function EventSession({ id }: { id: string }) {
 
   return (
     <CinemaStage contentClassName="items-start justify-center">
-      <article className="mx-auto grid w-full max-w-6xl gap-8 py-2 md:grid-cols-[minmax(0,16rem)_1fr] md:items-start md:gap-10">
-        <div className="grid justify-items-center gap-3 text-center md:justify-items-start md:text-left">
-          {poster ? (
-            <img
-              src={poster}
-              alt=""
-              className="aspect-2/3 w-40 overflow-hidden rounded-xl border border-[#c4b5ff] object-cover md:w-full"
-            />
-          ) : (
-            <div
-              className="aspect-2/3 w-40 rounded-xl border border-[#c4b5ff] bg-[#1c1048] md:w-full"
-              aria-hidden="true"
-            />
-          )}
-          <p className={marqueePill}>Em cartaz</p>
-          <h1 className="m-0 text-2xl font-extrabold tracking-tight text-white md:text-3xl">
-            {event.title}
-          </h1>
-          <p className="m-0 text-sm text-white/75">{formatSessionWhen(event.startsAt)}</p>
-          <p className="m-0 text-lg font-extrabold text-white">{formatPrice(event.priceCents)}</p>
+      {/* min-w-0 em toda a cadeia: um item de grid/flex cresce até o conteúdo
+          por padrão, e sem isso a sala vaza da tela em vez de rolar. */}
+      <article className="mx-auto grid w-full max-w-6xl min-w-0 gap-8 pb-52 md:grid-cols-[minmax(0,17rem)_1fr] md:items-start md:gap-12 md:pb-24">
+        <div className="grid gap-4 md:sticky md:top-28">
           <Link
-            className="text-sm font-bold text-white/80 hover:text-white"
+            className={`${btnQuiet} justify-self-start`}
             to="/events"
             onClick={(e) => void onBackToCartaz(e)}
           >
+            <ChevronIcon size={20} className="rotate-180" />
             Voltar ao cartaz
           </Link>
+
+          <div className="grid grid-cols-[6rem_1fr] items-start gap-4 md:grid-cols-1">
+            {poster ? (
+              <img
+                src={poster}
+                alt=""
+                className="aspect-2/3 w-full overflow-hidden rounded-2xl border border-line-strong object-cover shadow-elev-2"
+              />
+            ) : (
+              <div
+                className="aspect-2/3 w-full rounded-2xl border border-line-strong bg-surface-high"
+                aria-hidden="true"
+              />
+            )}
+
+            <div className="grid justify-items-start gap-2">
+              <span className={pill}>Em cartaz</span>
+              <h1 className="m-0 text-2xl font-extrabold tracking-tight md:text-3xl">
+                {event.title}
+              </h1>
+              <p className="m-0 flex items-center gap-2 text-[13px] text-muted">
+                <ClockIcon size={17} />
+                {formatSessionWhen(event.startsAt)}
+              </p>
+              <p className="m-0 flex items-center gap-2 text-[13px] text-muted">
+                <TicketIcon size={17} />
+                {formatPrice(event.priceCents)} por assento
+              </p>
+            </div>
+          </div>
+
           {isOwner ? (
             <button
               type="button"
-              className="mt-1 inline-flex min-h-10 cursor-pointer items-center justify-center rounded-xl border border-white/40 bg-transparent px-4 py-2 text-sm font-bold text-white/85 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              className={`${btnGhost} min-h-10 justify-self-start text-sm disabled:cursor-not-allowed disabled:opacity-60`}
               disabled={archiving}
-              onClick={() => void onArchive()}
+              onClick={() => setConfirmArchive(true)}
             >
               {archiving ? 'Encerrando…' : 'Encerrar sessão'}
             </button>
           ) : null}
         </div>
 
-        <div className="grid gap-5 justify-items-center">
+        <div className="grid justify-items-center gap-5">
           <SeatMap seats={event.seats} selectedIds={selectedSet} onToggle={toggleSeat} />
+          {actionError ? (
+            <p className={`m-0 ${hintError}`} role="alert">
+              {actionError}
+            </p>
+          ) : null}
+        </div>
+      </article>
 
-          <div className="grid w-full max-w-sm justify-items-center gap-2">
+      {/* Resumo fixo: a contagem e o total acompanham o dedo em vez de ficarem
+          acima da dobra, atrás do mapa. No mobile ele se apoia na tab bar (4rem
+          + safe area) em vez de disputar o mesmo rodapé. */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-md md:bottom-4 md:mx-auto md:max-w-3xl md:rounded-2xl md:border md:px-6">
+        <div className="mx-auto grid max-w-6xl gap-3 md:flex md:items-center md:justify-between md:gap-8">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:justify-start">
+            <span className="text-[13px] whitespace-nowrap text-muted">
+              {selectedIds.length} de {MAX_SEATS} assentos
+            </span>
+            <span className="flex flex-wrap justify-end gap-1.5">
+              {heldSeats.map((seat) => (
+                <span key={seat.id} className={badgeNeutral}>
+                  {seat.row}
+                  {seat.number}
+                </span>
+              ))}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="grid md:justify-items-end">
+              <span className="text-[13px] text-faint">Total</span>
+              <span className="text-xl font-extrabold tabular-nums">
+                {formatPrice(event.priceCents * selectedIds.length)}
+              </span>
+            </span>
             <button
               type="button"
-              className={`${btnMarquee} w-full justify-center disabled:cursor-not-allowed disabled:opacity-60`}
+              className={`${btn} min-h-13 shrink-0 px-5 text-base md:px-6`}
               disabled={!canPay}
               onClick={() => void onPay()}
             >
-              {paying ? 'Reservando…' : 'Pagar'}
+              {paying ? 'Reservando…' : 'Reservar e pagar'}
             </button>
-            <p className="m-0 text-xs text-white/60">
-              {selectedIds.length === 0
-                ? `Selecione até ${MAX_SEATS} assentos`
-                : `${selectedIds.length} de ${MAX_SEATS} selecionados`}
-            </p>
-            {actionError ? (
-              <p className="m-0 text-sm font-semibold text-[#ffb4b4]" role="alert">
-                {actionError}
-              </p>
-            ) : null}
           </div>
         </div>
-      </article>
+      </div>
+
+      <ConfirmDialog
+        open={confirmArchive}
+        title="Encerrar esta sessão?"
+        description="Ela sai do cartaz e ninguém mais compra. Os ingressos já emitidos continuam válidos na portaria."
+        confirmLabel={archiving ? 'Encerrando…' : 'Encerrar sessão'}
+        cancelLabel="Manter no cartaz"
+        pending={archiving}
+        onConfirm={() => void onArchive()}
+        onCancel={() => setConfirmArchive(false)}
+      />
 
       {heldUntil && accessToken && checkoutOpen ? (
         <CheckoutModal
@@ -419,7 +511,7 @@ function EventSession({ id }: { id: string }) {
           priceCents={event.priceCents}
           eventId={id}
           accessToken={accessToken}
-          onClose={() => void onCheckoutClose()}
+          onClose={(reason) => void onCheckoutClose(reason)}
           onSuccess={onCheckoutSuccess}
         />
       ) : null}
