@@ -84,7 +84,7 @@ export function QrCamera({ enabled, ignoreCode, onCode }: QrCameraProps) {
   const noMediaApi = typeof navigator.mediaDevices?.getUserMedia !== 'function';
   if (unavailable || noMediaApi) {
     return (
-      <p className="m-0 rounded-2xl border border-line bg-surface px-4 py-6 text-center text-sm text-muted">
+      <p className="m-0 self-start rounded-2xl border border-line bg-surface px-4 py-6 text-center text-sm text-muted">
         Câmera indisponível — cole o código abaixo.
       </p>
     );

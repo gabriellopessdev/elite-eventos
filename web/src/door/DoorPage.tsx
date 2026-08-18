@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { btn, fieldInput, fieldLabel, hintError, skeleton, surface, surfaceHigh } from '../ui';
-import { AlertIcon, CheckIcon, ClockIcon, CloseIcon } from '../icons';
+import {
+  btn,
+  btnGhost,
+  fieldInput,
+  fieldLabel,
+  hintError,
+  skeleton,
+  surface,
+  surfaceHigh,
+} from '../ui';
+import { AlertIcon, CheckIcon, ClockIcon, CloseIcon, ScanIcon } from '../icons';
 import {
   formatSessionWhen,
   listEvents,
@@ -15,6 +25,7 @@ import {
 import { QrCamera } from './QrCamera';
 
 const SAME_CODE_PAUSE_MS = 2000;
+const RESULT_MS = 2000;
 const HISTORY_SIZE = 4;
 
 export function sessionDay(iso: string): string {
@@ -66,46 +77,30 @@ function OutcomeIcon({ outcome }: { outcome: ScanOutcome }) {
 
 type Reading = { id: number; outcome: ScanOutcome; text: string; at: string };
 
-/** Card de sessão: o pôster é o que o porteiro reconhece de relance na fila. */
-function SessionCard({
-  event,
-  selected,
-  onSelect,
-}: {
-  event: EventSummary;
-  selected: boolean;
-  onSelect: () => void;
-}) {
+/** Linha de sessão: pôster para reconhecer de relance, nome e data para conferir. */
+function SessionRow({ event, onOpen }: { event: EventSummary; onOpen: () => void }) {
   const poster = posterUrl(event.posterPath, 'w185');
 
   return (
     <button
       type="button"
-      aria-pressed={selected}
-      onClick={onSelect}
-      className={`grid w-full cursor-pointer gap-2 rounded-2xl border bg-surface p-2 text-left ${
-        selected ? 'border-accent shadow-glow' : 'border-line hover:border-line-strong'
-      }`}
+      onClick={onOpen}
+      className={`${surface} grid w-full cursor-pointer grid-cols-[2.75rem_1fr_auto] items-center gap-4 p-3 text-left hover:border-line-strong hover:bg-surface-high`}
     >
-      <span className="relative block">
-        {poster ? (
-          <img src={poster} alt="" className="aspect-2/3 w-full rounded-xl object-cover" />
-        ) : (
-          <span className="block aspect-2/3 w-full rounded-xl bg-surface-high" />
-        )}
-        {selected ? (
-          <span className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-accent text-accent-ink">
-            <CheckIcon size={16} strokeWidth={3} />
-          </span>
-        ) : null}
-      </span>
-      <span className="grid gap-0.5 px-1 pb-1">
-        <span className={`truncate font-bold ${selected ? 'text-ink' : 'text-muted'}`}>
-          {event.title}
-        </span>
+      {poster ? (
+        <img src={poster} alt="" className="aspect-2/3 w-full rounded-lg object-cover" />
+      ) : (
+        <span className="block aspect-2/3 w-full rounded-lg bg-surface-high" />
+      )}
+      <span className="grid min-w-0 gap-0.5">
+        <span className="truncate text-lg font-bold tracking-tight">{event.title}</span>
         <span className="text-[13px] text-faint tabular-nums">
           {formatSessionWhen(event.startsAt)}
         </span>
+      </span>
+      <span className="flex items-center gap-1.5 pr-1 text-sm font-bold text-lavender">
+        <ScanIcon size={18} />
+        <span className="hidden sm:inline">Validar</span>
       </span>
     </button>
   );
@@ -124,9 +119,18 @@ export function DoorPage() {
   const [submitting, setSubmitting] = useState(false);
   const [ignoreCode, setIgnoreCode] = useState<string | null>(null);
   const [history, setHistory] = useState<Reading[]>([]);
+  const [mode, setMode] = useState<'camera' | 'code'>('camera');
   const pauseRef = useRef<{ code: string; until: number } | null>(null);
   const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | 0>(0);
   const inFlightRef = useRef(false);
+
+  /* O resultado toma o modal e sai sozinho: a fila anda sem ninguém tocar na
+     tela entre uma pessoa e a próxima. */
+  useEffect(() => {
+    if (!result) return;
+    const timer = setTimeout(() => setResult(null), RESULT_MS);
+    return () => clearTimeout(timer);
+  }, [result]);
 
   useEffect(() => {
     if (session?.user.role !== 'DOOR') return;
@@ -237,20 +241,25 @@ export function DoorPage() {
     await submitScan(code);
   }
 
+  function openScan(nextId: string) {
+    setEventId(nextId);
+    setMode('camera');
+    setCode('');
+    setResult(null);
+    setError(null);
+  }
+
+  function closeScan() {
+    setEventId('');
+    setResult(null);
+    setError(null);
+  }
+
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6">
       <header className="grid gap-1.5">
         <h1 className="m-0 text-3xl font-extrabold tracking-tight md:text-4xl">Validar</h1>
-        <p className="m-0 text-muted">
-          {chosen ? (
-            <>
-              Validando a entrada de <span className="font-bold text-ink">{chosen.title}</span> ·{' '}
-              {formatSessionWhen(chosen.startsAt)}
-            </>
-          ) : (
-            'Escolha a sessão para ligar a câmera e liberar a validação.'
-          )}
-        </p>
+        <p className="m-0 text-muted">Toque na sessão para abrir o leitor de QR.</p>
       </header>
 
       {loadError ? (
@@ -299,14 +308,14 @@ export function DoorPage() {
         </div>
 
         {events === null ? (
-          <ul
-            className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3"
-            aria-hidden="true"
-          >
+          <ul className="m-0 grid list-none gap-2 p-0" aria-hidden="true">
             {[0, 1, 2].map((i) => (
-              <li key={i} className={`${surface} grid gap-2 p-2`}>
+              <li
+                key={i}
+                className={`${surface} grid grid-cols-[2.75rem_1fr] items-center gap-4 p-3`}
+              >
                 <span className={`${skeleton} block aspect-2/3 w-full`} />
-                <span className={`${skeleton} block h-3.5 w-4/5`} />
+                <span className={`${skeleton} block h-4 w-2/5`} />
               </li>
             ))}
           </ul>
@@ -315,93 +324,141 @@ export function DoorPage() {
             Nenhuma sessão bate com os filtros.
           </p>
         ) : (
-          <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3">
+          <ul className="m-0 grid list-none gap-2 p-0">
             {filtered.map((event) => (
               <li key={event.id}>
-                <SessionCard
-                  event={event}
-                  selected={event.id === eventId}
-                  onSelect={() => {
-                    setEventId(event.id === eventId ? '' : event.id);
-                    setResult(null);
-                    setError(null);
-                  }}
-                />
+                <SessionRow event={event} onOpen={() => openScan(event.id)} />
               </li>
             ))}
           </ul>
         )}
       </section>
 
-      <QrCamera
-        key={eventId || 'off'}
-        enabled={Boolean(eventId)}
-        ignoreCode={ignoreCode}
-        onCode={(value) => {
-          void submitScan(value);
-        }}
-      />
-
-      {result ? (
-        <div className={`grid gap-2 rounded-2xl px-6 py-6 ${outcomeTone[result.outcome]}`}>
-          <span className="flex items-center gap-3">
-            <OutcomeIcon outcome={result.outcome} />
-          </span>
-          <p role="status" className="m-0 text-4xl font-extrabold tracking-tight">
-            {outcomeCopy(result)}
-          </p>
-          {chosen ? (
-            <p className="m-0 font-semibold opacity-75">
-              {chosen.title} · {formatSessionWhen(chosen.startsAt)}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {error ? (
-        <p className={`m-0 ${hintError}`} role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <form className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={onValidate}>
-        <label className={`grid gap-1.5 ${fieldLabel}`} htmlFor="door-code">
-          Código
-          <input
-            id="door-code"
-            className={`${fieldInput} font-normal`}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <button className={`${btn} min-h-12`} type="submit" disabled={!canSubmit}>
-          Validar
-        </button>
-      </form>
-
-      {history.length > 0 ? (
-        <section className="grid gap-2">
-          <h2 className="m-0 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
-            Últimas leituras
-          </h2>
-          <ul className="m-0 grid list-none gap-1.5 p-0">
-            {history.map((reading) => (
-              <li
-                key={reading.id}
-                className={`${surface} grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3.5 py-3`}
+      {chosen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/75 backdrop-blur-sm sm:items-center sm:p-4"
+              role="presentation"
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="scan-title"
+                className="grid w-full max-h-dvh grid-rows-[auto_1fr_auto] gap-4 overflow-y-auto border-line-strong bg-surface-high p-4 sm:max-w-md sm:rounded-2xl sm:border sm:p-5"
               >
-                <span
-                  aria-hidden="true"
-                  className={`size-2.5 rounded-full ${outcomeDot[reading.outcome]}`}
-                />
-                <span className="font-semibold">{reading.text}</span>
-                <span className="text-[13px] text-faint tabular-nums">{reading.at}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="grid min-w-0 gap-0.5">
+                    <h2
+                      id="scan-title"
+                      className="m-0 truncate text-xl font-extrabold tracking-tight"
+                    >
+                      {chosen.title}
+                    </h2>
+                    <p className="m-0 text-[13px] text-faint">
+                      {formatSessionWhen(chosen.startsAt)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${btnGhost} min-h-11 shrink-0 px-3`}
+                    onClick={closeScan}
+                  >
+                    <CloseIcon size={20} />
+                    Fechar
+                  </button>
+                </div>
+
+                {mode === 'camera' ? (
+                  /* Lendo QR: o resultado toma o lugar do leitor e sai sozinho
+                     em 2s, para a fila andar sem ninguém tocar na tela. */
+                  result ? (
+                    <div
+                      className={`grid content-center justify-items-start gap-3 rounded-2xl px-6 py-10 ${outcomeTone[result.outcome]}`}
+                    >
+                      <OutcomeIcon outcome={result.outcome} />
+                      <p role="status" className="m-0 text-4xl font-extrabold tracking-tight">
+                        {outcomeCopy(result)}
+                      </p>
+                    </div>
+                  ) : (
+                    <QrCamera
+                      enabled
+                      ignoreCode={ignoreCode}
+                      onCode={(value) => {
+                        void submitScan(value);
+                      }}
+                    />
+                  )
+                ) : (
+                  /* Digitando: o resultado vira faixa acima do campo — quem
+                     está digitando quer o campo de volta no ato, não em 2s. */
+                  <div className="grid content-start gap-3">
+                    {result ? (
+                      <div
+                        className={`flex items-center gap-3 rounded-xl px-4 py-3 ${outcomeTone[result.outcome]}`}
+                      >
+                        <OutcomeIcon outcome={result.outcome} />
+                        <p role="status" className="m-0 text-xl font-extrabold tracking-tight">
+                          {outcomeCopy(result)}
+                        </p>
+                      </div>
+                    ) : null}
+                    <form className="grid gap-3" onSubmit={onValidate}>
+                      <label className={`grid gap-1.5 ${fieldLabel}`} htmlFor="door-code">
+                        Código
+                        <input
+                          id="door-code"
+                          className={`${fieldInput} font-normal`}
+                          value={code}
+                          onChange={(e) => setCode(e.target.value)}
+                          autoComplete="off"
+                        />
+                      </label>
+                      <button className={`${btn} min-h-12`} type="submit" disabled={!canSubmit}>
+                        Validar
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                <div className="grid gap-3">
+                  {error ? (
+                    <p className={`m-0 ${hintError}`} role="alert">
+                      {error}
+                    </p>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    className={`${btnGhost} w-full`}
+                    onClick={() => {
+                      setMode(mode === 'camera' ? 'code' : 'camera');
+                      setError(null);
+                    }}
+                  >
+                    {mode === 'camera' ? 'Digitar o código' : 'Usar a câmera'}
+                  </button>
+
+                  {history.length > 0 ? (
+                    <ul className="m-0 flex list-none flex-wrap gap-x-4 gap-y-1.5 border-t border-line p-0 pt-3">
+                      {history.slice(0, 3).map((reading) => (
+                        <li key={reading.id} className="flex items-center gap-2 text-[13px]">
+                          <span
+                            aria-hidden="true"
+                            className={`size-2 rounded-full ${outcomeDot[reading.outcome]}`}
+                          />
+                          <span className="font-semibold text-muted">{reading.text}</span>
+                          <span className="text-faint tabular-nums">{reading.at}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
