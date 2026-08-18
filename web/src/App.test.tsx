@@ -130,6 +130,7 @@ describe('App shell', () => {
                   eventId: 'evt-dune',
                   seatId: 'seat-0',
                   code: 't1.sig',
+                  pin: '384291',
                   status: 'UNUSED',
                   createdAt: '2026-08-17T12:00:00.000Z',
                   event: {
