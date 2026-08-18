@@ -67,15 +67,6 @@ function mergeHeldSeats(seats: Seat[], held: Seat[]): Seat[] {
   });
 }
 
-function freeHeldSeats(seats: Seat[], seatIds: string[]): Seat[] {
-  const ids = new Set(seatIds);
-  return seats.map((seat) =>
-    ids.has(seat.id) && seat.status === 'HELD'
-      ? { ...seat, status: 'AVAILABLE' as const, heldUntil: null }
-      : seat,
-  );
-}
-
 type SeatMapProps = {
   seats: Seat[];
   selectedIds: Set<string>;
@@ -282,24 +273,32 @@ function EventSession({ id }: { id: string }) {
   }
 
   async function onCheckoutClose(reason: CloseReason) {
-    const heldIds = selectedIds;
-
     /* Expirou: o modal fica montado para explicar o que aconteceu — antes ele
        sumia sozinho e a pessoa ficava achando que tinha comprado. */
     if (reason === 'cancel') {
       setCheckoutOpen(false);
       setHeldUntil(null);
+      setSelectedIds([]);
     }
 
-    if (!accessToken || role !== 'CUSTOMER' || releasedRef.current) return;
-    releasedRef.current = true;
+    if (!accessToken || role !== 'CUSTOMER') return;
+
+    if (!releasedRef.current) {
+      releasedRef.current = true;
+      try {
+        await releaseHold(id, accessToken);
+      } catch {
+        setActionError('Não foi possível liberar a reserva');
+      }
+    }
+
+    if (reason !== 'cancel') return;
+
     try {
-      await releaseHold(id, accessToken);
-      setEvent((prev) =>
-        prev ? { ...prev, seats: freeHeldSeats(prev.seats, heldIds), myHold: undefined } : prev,
-      );
+      const next = await getEvent(id, accessToken);
+      if (next) setEvent(next);
     } catch {
-      setActionError('Não foi possível liberar a reserva');
+      /* o DELETE já foi; o mapa fica com o último estado conhecido */
     }
   }
 
@@ -313,7 +312,8 @@ function EventSession({ id }: { id: string }) {
 
   /**
    * Abandono SPA: não liberamos no unmount (Strict Mode).
-   * Só DELETE em Cancel/timer (onClose) e ao clicar "Voltar ao cartaz" com modal aberto.
+   * Só DELETE em onClose (X, Cancelar, timer) e em "Voltar ao cartaz".
+   * Clique no fundo não fecha. Ao cancelar: desmarca e busca o mapa de novo.
    */
   async function onBackToCartaz(e: MouseEvent<HTMLAnchorElement>) {
     if (!checkoutOpen) return;
