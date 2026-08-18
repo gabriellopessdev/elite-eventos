@@ -25,9 +25,10 @@ stateDiagram-v2
 
 ## ADR-003 — QR não forjável via HMAC
 
-**Status:** accepted (desenho)  
-**Decisão:** código do ingresso = payload assinado (HMAC) verificável só com segredo do servidor.  
-**Alternativas:** JWT curto; só UUID opaco no DB (mais frágil se vazar padrão).
+**Status:** accepted  
+**Decisão:** payload do QR = `ticketId.sig` (HMAC) verificável só com segredo do servidor. A câmera lê isso.  
+**Digitação na porta:** PIN de 6 dígitos único **por sessão** (`Ticket.pin`), gerado no checkout. Não substitui o HMAC — 6 dígitos globais são forjáveis; 6 dígitos no `eventId` da rota cabem numa sala. PIN de outra sessão → `invalid` (colide entre sessões; não vazar `wrong_event`).  
+**Alternativas:** TOTP/2FA (rejeitado — o código muda na fila); só UUID no DB; só 6 dígitos no QR.
 
 ## ADR-004 — TMDb como catálogo externo
 
@@ -66,7 +67,7 @@ stateDiagram-v2
 - Hold: `POST /events/:id/hold` e `DELETE /events/:id/hold` (cliente; até 8 assentos; TTL 10 min no servidor).
 - Checkout: `POST /events/:id/checkout` — ~25% recusa simulada no servidor (402, hold permanece); sucesso marca assentos `SOLD` e cria **1 `Ticket` por assento** (sem modelo `Order`).
 - Soft archive: org arquiva sessão (`ARCHIVED`); some do catálogo público; libera `HELD`.
-- QR: `code = ticketId.sig` (HMAC, ADR-003).  
+- QR: `code = ticketId.sig` (HMAC, ADR-003). PIN de 6 dígitos único na sessão para digitação.  
 **Alternativas:** Order+line items; gateway sandbox; hold só no front (rejeitado — double-sell).
 
 ## ADR-010 — Portaria: scan HMAC atômico por sessão
@@ -79,9 +80,10 @@ stateDiagram-v2
 - Código vazio → **400**; org/cliente/anônimo → **401/403**.
 - Sucesso **200** `{ outcome: 'valid' | 'invalid' | 'used' | 'wrong_event', seat?: { row, number } }`.
 - Ordem de avaliação (não vazar existência de UUID):
-  1. HMAC inválido, payload lixo ou `ticketId` inexistente → `invalid`.
-  2. `eventId` do ticket ≠ `:id` da rota → `wrong_event` (mesmo se já `USED`).
-  3. `USED` na sessão certa → `used`.
-  4. Senão `updateMany` `UNUSED`→`USED` (atômico) → `valid` + assento.
-- Web (`/door`): seletor de sessão + filtro data/título no cliente; câmera (`jsQR`) e campo manual na mesma tela; válido consome na hora; permanece na rota; pausa **2 s** e ignora o mesmo `code` repetido.
-**Alternativas:** GET idempotente (rejeitado — portaria precisa marcar uso); validar só UUID no DB sem HMAC (rejeitado — ADR-003).
+  1. `code` é 6 dígitos → lookup `(eventId, pin)`. Ausente → `invalid`. `USED` → `used`. Senão `updateMany` `UNUSED`→`USED` → `valid`.
+  2. HMAC inválido, payload lixo ou `ticketId` inexistente → `invalid`.
+  3. `eventId` do ticket ≠ `:id` da rota → `wrong_event` (mesmo se já `USED`).
+  4. `USED` na sessão certa → `used`.
+  5. Senão `updateMany` `UNUSED`→`USED` (atômico) → `valid` + assento.
+- Web (`/door`): seletor de sessão + filtro data/título no cliente; câmera (`jsQR`) lê o HMAC; campo manual só 6 dígitos; válido consome na hora; permanece na rota; pausa **2 s** e ignora o mesmo `code` repetido.
+**Alternativas:** GET idempotente (rejeitado — portaria precisa marcar uso); validar só UUID no DB sem HMAC (rejeitado — ADR-003); TOTP na porta (rejeitado — ADR-003).
