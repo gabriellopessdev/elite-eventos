@@ -64,6 +64,55 @@ function renderAt(path: string) {
   );
 }
 
+function customerHoldFetch(heldUntil: string) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.includes('/hold') && init?.method === 'DELETE') {
+      return { ok: true, status: 204, json: async () => ({}) };
+    }
+    if (url.includes('/hold') && init?.method === 'POST') {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          seats: [{ id: 'seat-0', row: 'A', number: 1, status: 'HELD', heldUntil }],
+          heldUntil,
+        }),
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...dune,
+        seats: seats([
+          ['A', 1],
+          ['A', 2],
+        ]),
+      }),
+    };
+  });
+}
+
+async function openCustomerCheckout() {
+  seedCustomer();
+  const heldUntil = new Date(Date.now() + 10 * 60_000).toISOString();
+  const fetchMock = customerHoldFetch(heldUntil);
+  vi.stubGlobal('fetch', fetchMock);
+  renderAt('/events/evt-dune');
+  fireEvent.click(await screen.findByRole('button', { name: 'A1 disponível' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Reservar e pagar' }));
+  const dialog = await screen.findByRole('dialog');
+  return { fetchMock, dialog };
+}
+
+function expectHoldDeleted(fetchMock: ReturnType<typeof customerHoldFetch>) {
+  const deleteHold = fetchMock.mock.calls.find(
+    ([url, init]) => String(url).includes('/hold') && (init as RequestInit)?.method === 'DELETE',
+  );
+  expect(deleteHold).toBeTruthy();
+}
+
 describe('detalhe da sessão', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -239,6 +288,24 @@ describe('detalhe da sessão', () => {
       ([url, init]) => String(url).includes('/hold') && (init as RequestInit)?.method === 'DELETE',
     );
     expect(deleteHold).toBeUndefined();
+  });
+
+  it('Cancelar o checkout libera o hold, atualiza o mapa e desmarca', async () => {
+    const { fetchMock, dialog } = await openCustomerCheckout();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() => expectHoldDeleted(fetchMock));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(await screen.findByRole('button', { name: 'A1 disponível' })).toBeTruthy();
+    expect(screen.queryByLabelText('A1 selecionado')).toBeNull();
+
+    const eventGets = fetchMock.mock.calls.filter(([url, init]) => {
+      const path = String(url);
+      const method = (init as RequestInit)?.method ?? 'GET';
+      return path.includes('/events/evt-dune') && !path.includes('/hold') && method === 'GET';
+    });
+    expect(eventGets.length).toBeGreaterThanOrEqual(2);
   });
 
   it('dono ORGANIZER confirma no diálogo antes de encerrar', async () => {
