@@ -105,7 +105,7 @@ describe('portaria /door', () => {
 
     // Validar só existe dentro do modal, que só abre por uma sessão.
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.queryByLabelText('Código')).toBeNull();
+    expect(screen.queryByLabelText('Código de 6 dígitos')).toBeNull();
   });
 
   it('abre o modal na sessão tocada e fecha pelo Fechar', async () => {
@@ -118,17 +118,17 @@ describe('portaria /door', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Duna' })).toBeTruthy();
-    expect(screen.queryByLabelText('Código')).toBeNull();
+    expect(screen.queryByLabelText('Código de 6 dígitos')).toBeNull();
 
     // O botão troca o leitor pelo campo, e volta.
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    expect(screen.getByLabelText('Código')).toBeTruthy();
+    expect(screen.getByLabelText('Código de 6 dígitos')).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Validar' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Usar a câmera' }));
-    expect(screen.queryByLabelText('Código')).toBeNull();
+    expect(screen.queryByLabelText('Código de 6 dígitos')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -146,12 +146,12 @@ describe('portaria /door', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '384291' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
 
     expect((await screen.findByRole('status')).textContent).toBe('Válido · B7');
-    expect(scan).toHaveBeenCalledWith(duna.id, 'ticket.sig', 'access-DOOR');
-    expect((screen.getByLabelText('Código') as HTMLInputElement).value).toBe('');
+    expect(scan).toHaveBeenCalledWith(duna.id, '384291', 'access-DOOR');
+    expect((screen.getByLabelText('Código de 6 dígitos') as HTMLInputElement).value).toBe('');
   });
 
   it('ingresso de outra sessão mostra Sessão errada', async () => {
@@ -163,7 +163,7 @@ describe('portaria /door', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'other.sig' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '555111' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
 
     expect((await screen.findByRole('status')).textContent).toBe('Sessão errada');
@@ -178,12 +178,12 @@ describe('portaria /door', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'lixo' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect((await screen.findByRole('status')).textContent).toBe('Ingresso inválido');
 
     scan.mockResolvedValueOnce({ outcome: 'used' });
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'used.sig' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '102938' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect((await screen.findByRole('status')).textContent).toBe('Já utilizado');
   });
@@ -197,7 +197,7 @@ describe('portaria /door', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'lixo' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect(await screen.findByRole('status')).toBeTruthy();
 
@@ -216,7 +216,7 @@ describe('portaria /door', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'lixo' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '000000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect(await screen.findByRole('status')).toBeTruthy();
 
@@ -225,7 +225,7 @@ describe('portaria /door', () => {
     expect(screen.queryByRole('button', { name: /Duna/ })).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
-    expect(screen.queryByLabelText('Código')).toBeNull();
+    expect(screen.queryByLabelText('Código de 6 dígitos')).toBeNull();
   });
 
   it('ignora o mesmo código por 2s após validar', async () => {
@@ -241,7 +241,7 @@ describe('portaria /door', () => {
     vi.useFakeTimers();
     fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '384291' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     await act(async () => {
       await Promise.resolve();
@@ -250,7 +250,7 @@ describe('portaria /door', () => {
     expect(screen.getByRole('status').textContent).toBe('Válido · B7');
     expect(scan).toHaveBeenCalledTimes(1);
 
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '384291' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     expect(scan).toHaveBeenCalledTimes(1);
 
@@ -258,13 +258,13 @@ describe('portaria /door', () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
 
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '384291' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
     await act(async () => {
       await Promise.resolve();
     });
     expect(scan).toHaveBeenCalledTimes(2);
-    expect(scan).toHaveBeenNthCalledWith(2, duna.id, 'ticket.sig', 'access-DOOR');
+    expect(scan).toHaveBeenNthCalledWith(2, duna.id, '384291', 'access-DOOR');
   });
 
   it('falha de rede não mistura com os quatro resultados', async () => {
@@ -276,7 +276,7 @@ describe('portaria /door', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
-    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'ticket.sig' } });
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '384291' } });
     fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
 
     expect(await screen.findByText('Não foi possível validar o ingresso')).toBeTruthy();

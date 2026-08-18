@@ -188,7 +188,7 @@ export function DoorPage() {
   }
 
   const accessToken = session.accessToken;
-  const canSubmit = Boolean(eventId) && code.trim().length > 0 && !submitting;
+  const canSubmit = Boolean(eventId) && code.length === 6 && !submitting;
   const chosen = filtered.find((event) => event.id === eventId) ?? null;
 
   function armPause(nextCode: string) {
@@ -405,13 +405,16 @@ export function DoorPage() {
                     ) : null}
                     <form className="grid gap-3" onSubmit={onValidate}>
                       <label className={`grid gap-1.5 ${fieldLabel}`} htmlFor="door-code">
-                        Código
+                        Código de 6 dígitos
                         <input
                           id="door-code"
-                          className={`${fieldInput} font-normal`}
+                          className={`${fieldInput} text-center font-mono text-xl tracking-[0.28em] tabular-nums`}
                           value={code}
-                          onChange={(e) => setCode(e.target.value)}
+                          inputMode="numeric"
                           autoComplete="off"
+                          maxLength={6}
+                          placeholder="000000"
+                          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         />
                       </label>
                       <button className={`${btn} min-h-12`} type="submit" disabled={!canSubmit}>
