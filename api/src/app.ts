@@ -18,7 +18,11 @@ function corsOrigin() {
 export function buildApp() {
   const app = Fastify({ logger: true });
 
-  app.register(cors, { origin: corsOrigin() });
+  app.register(cors, {
+    origin: corsOrigin(),
+    /* @fastify/cors v11 default is GET,HEAD,POST — DELETE /hold precisa estar na lista. */
+    methods: ['GET', 'HEAD', 'POST', 'DELETE'],
+  });
 
   app.get('/health', async () => ({
     ok: true,
