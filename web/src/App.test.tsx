@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
 import type { Role } from './auth/auth';
@@ -84,6 +84,22 @@ describe('App shell', () => {
     expect(labels('Eventos')).toHaveLength(0);
     expect(labels('Ingressos')).toHaveLength(0);
     expect(labels('Nova sessão')).toHaveLength(0);
+  });
+
+  it('a raiz leva cada papel para a casa dele', async () => {
+    seedRole('DOOR', 'Portaria Demo');
+    renderHome();
+    // Portaria cai no scanner, não no cartaz.
+    expect(await screen.findByRole('heading', { name: 'Validar' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Próximas sessões' })).toBeNull();
+
+    localStorage.clear();
+    cleanup();
+
+    seedRole('CUSTOMER', 'Cliente Um');
+    renderHome();
+    expect(await screen.findByRole('heading', { name: 'O cartaz abre em breve' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Validar' })).toBeNull();
   });
 });
 
