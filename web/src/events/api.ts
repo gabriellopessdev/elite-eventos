@@ -1,3 +1,5 @@
+import { apiFetch } from '../auth/auth';
+
 export type EventSummary = {
   id: string;
   tmdbId: number;
@@ -64,10 +66,6 @@ export class ApiError extends Error {
   }
 }
 
-function apiUrl(path: string) {
-  return `${import.meta.env.VITE_API_URL ?? ''}${path}`;
-}
-
 async function readErrorMessage(res: Response, fallback: string) {
   const body = (await res.json().catch(() => ({}))) as { message?: string };
   return body.message ?? fallback;
@@ -98,7 +96,7 @@ export function formatSessionWhen(startsAt: string) {
 }
 
 export async function listEvents(): Promise<EventSummary[]> {
-  const res = await fetch(apiUrl('/events'));
+  const res = await apiFetch('/events');
   if (!res.ok) {
     throw new ApiError(
       await readErrorMessage(res, 'Não foi possível carregar as sessões'),
@@ -113,7 +111,7 @@ export async function getEvent(
   id: string,
   accessToken?: string | null,
 ): Promise<EventDetail | null> {
-  const res = await fetch(apiUrl(`/events/${id}`), {
+  const res = await apiFetch(`/events/${id}`, {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
   });
   if (res.status === 404) return null;
@@ -131,7 +129,7 @@ export async function holdSeats(
   seatIds: string[],
   accessToken: string,
 ): Promise<HoldResult> {
-  const res = await fetch(apiUrl(`/events/${eventId}/hold`), {
+  const res = await apiFetch(`/events/${eventId}/hold`, {
     method: 'POST',
     headers: authHeaders(accessToken, true),
     body: JSON.stringify({ seatIds }),
@@ -146,7 +144,7 @@ export async function holdSeats(
 }
 
 export async function releaseHold(eventId: string, accessToken: string): Promise<void> {
-  const res = await fetch(apiUrl(`/events/${eventId}/hold`), {
+  const res = await apiFetch(`/events/${eventId}/hold`, {
     method: 'DELETE',
     headers: authHeaders(accessToken),
   });
@@ -162,7 +160,7 @@ export async function checkout(
   eventId: string,
   accessToken: string,
 ): Promise<{ tickets: Ticket[] }> {
-  const res = await fetch(apiUrl(`/events/${eventId}/checkout`), {
+  const res = await apiFetch(`/events/${eventId}/checkout`, {
     method: 'POST',
     headers: authHeaders(accessToken),
   });
@@ -176,7 +174,7 @@ export async function checkout(
 }
 
 export async function archiveEvent(eventId: string, accessToken: string): Promise<EventSummary> {
-  const res = await fetch(apiUrl(`/events/${eventId}/archive`), {
+  const res = await apiFetch(`/events/${eventId}/archive`, {
     method: 'POST',
     headers: authHeaders(accessToken),
   });
@@ -190,7 +188,7 @@ export async function archiveEvent(eventId: string, accessToken: string): Promis
 }
 
 export async function listMyTickets(accessToken: string): Promise<Ticket[]> {
-  const res = await fetch(apiUrl('/tickets'), {
+  const res = await apiFetch('/tickets', {
     headers: authHeaders(accessToken),
   });
   if (!res.ok) {
@@ -208,7 +206,7 @@ export async function scanEvent(
   code: string,
   accessToken: string,
 ): Promise<ScanResult> {
-  const res = await fetch(apiUrl(`/events/${eventId}/scan`), {
+  const res = await apiFetch(`/events/${eventId}/scan`, {
     method: 'POST',
     headers: authHeaders(accessToken, true),
     body: JSON.stringify({ code }),
@@ -238,7 +236,7 @@ export type CreateEventInput = {
 };
 
 export async function searchMovies(query: string, accessToken: string): Promise<MovieHit[]> {
-  const res = await fetch(`${apiUrl('/movies/search')}?q=${encodeURIComponent(query)}`, {
+  const res = await apiFetch(`/movies/search?q=${encodeURIComponent(query)}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) {
@@ -252,7 +250,7 @@ export async function createEvent(
   input: CreateEventInput,
   accessToken: string,
 ): Promise<EventSummary> {
-  const res = await fetch(apiUrl('/events'), {
+  const res = await apiFetch('/events', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,

@@ -58,6 +58,30 @@ export function saveSession(session: Session | null) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
+export type SessionMeta = { kick?: boolean };
+
+type SessionListener = (session: Session | null, meta?: SessionMeta) => void;
+
+const sessionListeners = new Set<SessionListener>();
+let refreshInFlight: Promise<Session | null> | null = null;
+
+export function subscribeSession(listener: SessionListener) {
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
+export function writeSession(session: Session | null, meta?: SessionMeta) {
+  saveSession(session);
+  for (const listener of sessionListeners) listener(session, meta);
+}
+
+export function resetAuthClientForTests() {
+  refreshInFlight = null;
+  sessionListeners.clear();
+}
+
 export class AuthError extends Error {
   constructor(
     message: string,
@@ -68,7 +92,68 @@ export class AuthError extends Error {
 }
 
 function apiUrl(path: string) {
-  return `${import.meta.env.VITE_API_URL ?? ''}${path}`;
+  const base = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
+  return `${base}${path}`;
+}
+
+async function refreshSession(): Promise<Session | null> {
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    const current = loadSession();
+    if (!current) return null;
+
+    const res = await fetch(apiUrl('/auth/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: current.refreshToken }),
+    });
+
+    if (!res.ok) {
+      writeSession(null, { kick: true });
+      return null;
+    }
+
+    const tokens = (await res.json()) as { accessToken?: string; refreshToken?: string };
+    if (!tokens.accessToken || !tokens.refreshToken) {
+      writeSession(null, { kick: true });
+      return null;
+    }
+
+    const next: Session = {
+      ...current,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
+    writeSession(next);
+    return next;
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+
+  return refreshInFlight;
+}
+
+/**
+ * Fetch da API. 401 autenticado tenta um refresh (um de cada vez — reuse
+ * revoga a família) e repete o pedido. Refresh morto limpa a sessão.
+ */
+export async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+  retried = false,
+): Promise<Response> {
+  const res = await fetch(apiUrl(path), init);
+  if (res.status !== 401 || retried || path.startsWith('/auth/')) return res;
+
+  const headers = new Headers(init.headers);
+  if (!headers.has('Authorization')) return res;
+
+  const next = await refreshSession();
+  if (!next) return res;
+
+  headers.set('Authorization', `Bearer ${next.accessToken}`);
+  return apiFetch(path, { ...init, headers }, true);
 }
 
 export async function loginRequest(email: string, password: string): Promise<Session> {
