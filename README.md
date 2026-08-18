@@ -2,7 +2,7 @@
 
 Plataforma de **eventos e ingressos** — Desafio Elite Dev 2026.
 
-Organizador publica eventos a partir do **TMDb**; cliente escolhe **assento** (hold + timer 10 min), paga de forma simulada, recebe ingresso com **QR**; portaria valida na entrada.
+Organizador publica eventos a partir do **TMDb**; cliente escolhe **assento** (hold + timer 10 min), paga de forma simulada, recebe ingresso com **QR** e **PIN de 6 dígitos**; portaria valida na entrada.
 
 > Escopo pequeno de propósito. O que conta: decisões, fluxo completo, mão no resultado (não AI slop).
 
@@ -77,7 +77,7 @@ npm run db:seed
 ```
 
 Tela: [http://localhost:5173/login](http://localhost:5173/login) — atalhos **preenchem** o seed; o papel vem da API.  
-Portaria (`DOOR`): [http://localhost:5173/door](http://localhost:5173/door) — Validar (câmera ou código).  
+Portaria (`DOOR`): [http://localhost:5173/door](http://localhost:5173/door) — Validar (câmera no QR ou PIN de 6 dígitos).  
 API: `POST /auth/login` → `{ accessToken, refreshToken, user }`.  
 Refresh: `POST /auth/refresh` `{ "refreshToken" }` → novo par (rotação).  
 Logout: `POST /auth/logout` `{ "refreshToken" }` → 204.  

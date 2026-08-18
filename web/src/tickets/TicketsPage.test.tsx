@@ -50,6 +50,7 @@ const ticketsFixture: Ticket[] = [
     eventId: 'evt-dune',
     seatId: 'seat-0',
     code: 't1.sig',
+    pin: '384291',
     status: 'UNUSED',
     createdAt: '2026-08-17T12:00:00.000Z',
     event: {
@@ -65,6 +66,7 @@ const ticketsFixture: Ticket[] = [
     eventId: 'evt-dune',
     seatId: 'seat-1',
     code: 't2.sig',
+    pin: '102938',
     status: 'USED',
     createdAt: '2026-08-17T12:01:00.000Z',
     event: {
@@ -80,6 +82,7 @@ const ticketsFixture: Ticket[] = [
     eventId: 'evt-oppen',
     seatId: 'seat-9',
     code: 't3.sig',
+    pin: '555111',
     status: 'UNUSED',
     createdAt: '2026-08-17T11:00:00.000Z',
     event: {
@@ -197,5 +200,62 @@ describe('TicketsPage', () => {
     expect(screen.getByText('Assento C5')).toBeTruthy();
     expect(screen.queryByText('Assento A1')).toBeNull();
     expect(screen.getByText('Não usado')).toBeTruthy();
+  });
+
+  it('pôster na sessão; toque no ingresso abre o passe com PIN', async () => {
+    seedCustomer();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ tickets: ticketsFixture }),
+      }),
+    );
+
+    renderAt('/tickets');
+    const duneTrigger = await screen.findByRole('button', { name: /Duna/ });
+
+    expect(duneTrigger.querySelector('img')?.getAttribute('src')).toBe(
+      'https://image.tmdb.org/t/p/w185/dune.jpg',
+    );
+    expect(screen.queryByText('t1.sig')).toBeNull();
+    expect(screen.queryByText('384 291')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Assento A1/ }));
+
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.getByText('384 291')).toBeTruthy();
+    expect(screen.queryByText('t1.sig')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Assento A2/ }));
+    expect(await screen.findByText('102 938')).toBeTruthy();
+  });
+
+  it('sessão sem pôster reserva o espaço com placeholder', async () => {
+    seedCustomer();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tickets: [
+            {
+              ...ticketsFixture[0],
+              event: { ...ticketsFixture[0].event!, posterPath: null },
+            },
+          ],
+        }),
+      }),
+    );
+
+    renderAt('/tickets');
+    const trigger = await screen.findByRole('button', { name: /Duna/ });
+    expect(trigger.querySelector('img')).toBeNull();
+    expect(trigger.querySelector('[data-testid="poster-placeholder"]')).toBeTruthy();
   });
 });

@@ -107,6 +107,7 @@ model Ticket {
   seatId    String       @unique @map("seat_id")
   userId    String       @map("user_id")
   code      String
+  pin       String
   status    TicketStatus @default(UNUSED)
   createdAt DateTime     @default(now()) @map("created_at")
 
@@ -114,6 +115,7 @@ model Ticket {
   seat  Seat  @relation(fields: [seatId], references: [id], onDelete: Restrict)
   user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
 
+  @@unique([eventId, pin])
   @@index([userId, createdAt])
   @@index([eventId])
   @@map("tickets")
