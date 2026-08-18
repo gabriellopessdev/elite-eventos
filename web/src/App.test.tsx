@@ -101,6 +101,76 @@ describe('App shell', () => {
     expect(await screen.findByRole('heading', { name: 'O cartaz abre em breve' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Validar' })).toBeNull();
   });
+
+  it('access morto + refresh válido: o pedido segue e o chrome permanece logado', async () => {
+    seedRole('CUSTOMER', 'Cliente Um');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/auth/refresh')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ accessToken: 'new-access', refreshToken: 'new-refresh' }),
+          };
+        }
+        if (url.includes('/tickets')) {
+          const auth = new Headers(init?.headers).get('Authorization');
+          if (auth === 'Bearer access-CUSTOMER') {
+            return { ok: false, status: 401, json: async () => ({ message: 'Unauthorized' }) };
+          }
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              tickets: [
+                {
+                  id: 't1',
+                  eventId: 'evt-dune',
+                  seatId: 'seat-0',
+                  code: 't1.sig',
+                  status: 'UNUSED',
+                  createdAt: '2026-08-17T12:00:00.000Z',
+                  event: {
+                    id: 'evt-dune',
+                    title: 'Duna',
+                    posterPath: '/dune.jpg',
+                    startsAt: '2026-10-01T20:00:00.000Z',
+                  },
+                  seat: { row: 'A', number: 1 },
+                },
+              ],
+            }),
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({ events: [] }) };
+      }),
+    );
+
+    renderAt('/tickets');
+
+    expect(await screen.findByText('Assento A1')).toBeTruthy();
+    expect(screen.getByLabelText('sessão').textContent).toContain('Cliente Um');
+  });
+
+  it('refresh inválido: logout, tela de login, chrome sem nome', async () => {
+    seedRole('CUSTOMER', 'Cliente Um');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: 'Unauthorized' }),
+      })),
+    );
+
+    renderAt('/tickets');
+
+    expect(await screen.findByRole('heading', { name: 'Entrar' })).toBeTruthy();
+    expect(screen.queryByLabelText('sessão')).toBeNull();
+    expect(screen.queryByText('Cliente Um')).toBeNull();
+  });
 });
 
 describe('rota /door', () => {
