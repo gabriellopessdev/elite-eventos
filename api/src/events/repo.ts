@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventStatus, Prisma, SeatStatus, TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
+import { allocateTicketPins } from '../tickets/pin.js';
 import { signTicketId } from '../tickets/qr.js';
 
 /** Same 8×10 as the decorative home map. Hold/lock is slice 3. */
@@ -265,8 +266,17 @@ export async function checkoutHold({ eventId, userId, random = Math.random }: Ch
   }
 
   return prisma.$transaction(async (tx) => {
+    const existing = await tx.ticket.findMany({
+      where: { eventId },
+      select: { pin: true },
+    });
+    const pins = allocateTicketPins(
+      existing.map((ticket) => ticket.pin),
+      held.length,
+    );
+
     const tickets = [];
-    for (const seat of held) {
+    for (const [index, seat] of held.entries()) {
       await tx.seat.update({
         where: { id: seat.id },
         data: {
@@ -284,6 +294,7 @@ export async function checkoutHold({ eventId, userId, random = Math.random }: Ch
           seatId: seat.id,
           userId,
           code: signTicketId(id),
+          pin: pins[index]!,
           status: TicketStatus.UNUSED,
         },
         include: ticketCheckoutInclude,

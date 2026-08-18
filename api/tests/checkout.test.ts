@@ -180,6 +180,7 @@ describe('checkout + tickets API', () => {
       tickets: Array<{
         id: string;
         code: string;
+        pin: string;
         eventId: string;
         seatId: string;
         event: { id: string; title: string };
@@ -188,8 +189,12 @@ describe('checkout + tickets API', () => {
     };
     expect(body.tickets).toHaveLength(3);
 
+    const pins = new Set<string>();
     for (const ticket of body.tickets) {
       expect(verifyTicketCode(ticket.code)).toBe(ticket.id);
+      expect(ticket.pin).toMatch(/^\d{6}$/);
+      expect(pins.has(ticket.pin)).toBe(false);
+      pins.add(ticket.pin);
       expect(ticket.eventId).toBe(event.id);
       expect(ticket.event.id).toBe(event.id);
       expect(seatIds).toContain(ticket.seatId);
@@ -218,6 +223,7 @@ describe('checkout + tickets API', () => {
       tickets: Array<{
         id: string;
         code: string;
+        pin: string;
         eventId: string;
         createdAt: string;
         event: { id: string; title: string; posterPath: string | null; startsAt: string };
@@ -233,6 +239,7 @@ describe('checkout + tickets API', () => {
 
     for (const ticket of tickets) {
       expect(verifyTicketCode(ticket.code)).toBe(ticket.id);
+      expect(ticket.pin).toMatch(/^\d{6}$/);
       expect(ticket.event).toMatchObject({
         id: event.id,
         title: sessionBody.title,

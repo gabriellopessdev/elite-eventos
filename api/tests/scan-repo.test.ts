@@ -5,6 +5,7 @@ import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/auth/password.js';
 import { createEvent } from '../src/events/repo.js';
 import { signTicketId } from '../src/tickets/qr.js';
+import { randomTicketPin } from '../src/tickets/pin.js';
 import { scanTicket } from '../src/tickets/repo.js';
 
 process.env.JWT_SECRET ??= 'test-jwt-secret-elite-eventos';
@@ -69,10 +70,12 @@ describe('tickets/repo scanTicket', () => {
     eventId,
     seatId,
     status = TicketStatus.UNUSED,
+    pin = randomTicketPin(),
   }: {
     eventId: string;
     seatId: string;
     status?: TicketStatus;
+    pin?: string;
   }) {
     const id = randomUUID();
     const code = signTicketId(id);
@@ -81,7 +84,7 @@ describe('tickets/repo scanTicket', () => {
       data: { status: SeatStatus.SOLD, heldById: null, heldUntil: null },
     });
     const ticket = await prisma.ticket.create({
-      data: { id, eventId, seatId, userId: customerId, code, status },
+      data: { id, eventId, seatId, userId: customerId, code, pin, status },
     });
     return { ticket, code };
   }
@@ -189,5 +192,32 @@ describe('tickets/repo scanTicket', () => {
       where: { id: ticket.id, status: TicketStatus.USED },
     });
     expect(inDb).toHaveLength(1);
+  });
+
+  test('PIN of 6 digits on the right session → valid; unknown PIN → invalid', async () => {
+    const sessionA = await seedSession('Scan A');
+    const sessionB = await seedSession('Scan B');
+    const seat = sessionA.seats[0]!;
+    const { ticket } = await issueTicket({
+      eventId: sessionA.id,
+      seatId: seat.id,
+      pin: '384291',
+    });
+
+    const first = await scanTicket({ eventId: sessionA.id, code: ticket.pin });
+    expect(first).toEqual({
+      outcome: 'valid',
+      seat: { row: seat.row, number: seat.number },
+    });
+
+    const second = await scanTicket({ eventId: sessionA.id, code: ticket.pin });
+    expect(second).toEqual({ outcome: 'used' });
+
+    const otherSession = await scanTicket({ eventId: sessionB.id, code: ticket.pin });
+    expect(otherSession).toEqual({ outcome: 'invalid' });
+
+    expect(await scanTicket({ eventId: sessionA.id, code: '000000' })).toEqual({
+      outcome: 'invalid',
+    });
   });
 });

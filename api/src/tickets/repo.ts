@@ -1,5 +1,6 @@
 import { TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
+import { isTicketPin } from './pin.js';
 import { verifyTicketCode } from './qr.js';
 
 export type ScanOutcome = 'valid' | 'invalid' | 'used' | 'wrong_event';
@@ -9,6 +10,13 @@ export type ScanResult = {
   seat?: { row: string; number: number };
 };
 
+type TicketWithSeat = {
+  id: string;
+  eventId: string;
+  status: TicketStatus;
+  seat: { row: string; number: number };
+};
+
 export async function scanTicket({
   eventId,
   code,
@@ -16,7 +24,18 @@ export async function scanTicket({
   eventId: string;
   code: string;
 }): Promise<ScanResult> {
-  const ticketId = verifyTicketCode(code.trim());
+  const trimmed = code.trim();
+
+  if (isTicketPin(trimmed)) {
+    const ticket = await prisma.ticket.findUnique({
+      where: { eventId_pin: { eventId, pin: trimmed } },
+      include: { seat: { select: { row: true, number: true } } },
+    });
+    if (!ticket) return { outcome: 'invalid' };
+    return consumeScannedTicket(ticket);
+  }
+
+  const ticketId = verifyTicketCode(trimmed);
   if (!ticketId) return { outcome: 'invalid' };
 
   const ticket = await prisma.ticket.findUnique({
@@ -24,13 +43,16 @@ export async function scanTicket({
     include: { seat: { select: { row: true, number: true } } },
   });
   if (!ticket) return { outcome: 'invalid' };
-
   if (ticket.eventId !== eventId) return { outcome: 'wrong_event' };
 
+  return consumeScannedTicket(ticket);
+}
+
+async function consumeScannedTicket(ticket: TicketWithSeat): Promise<ScanResult> {
   if (ticket.status === TicketStatus.USED) return { outcome: 'used' };
 
   const updated = await prisma.ticket.updateMany({
-    where: { id: ticketId, eventId, status: TicketStatus.UNUSED },
+    where: { id: ticket.id, eventId: ticket.eventId, status: TicketStatus.UNUSED },
     data: { status: TicketStatus.USED },
   });
   if (updated.count !== 1) return { outcome: 'used' };

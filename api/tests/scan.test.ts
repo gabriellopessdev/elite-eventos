@@ -6,6 +6,7 @@ import { buildApp } from '../src/app.js';
 import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/auth/password.js';
 import { signTicketId } from '../src/tickets/qr.js';
+import { randomTicketPin } from '../src/tickets/pin.js';
 
 process.env.JWT_SECRET ??= 'test-jwt-secret-elite-eventos';
 process.env.QR_HMAC_SECRET ??= 'test-qr-hmac-secret';
@@ -94,7 +95,7 @@ async function issueTicket({
     data: { status: SeatStatus.SOLD, heldById: null, heldUntil: null },
   });
   const ticket = await prisma.ticket.create({
-    data: { id, eventId, seatId, userId: customerId, code, status },
+    data: { id, eventId, seatId, userId: customerId, code, pin: randomTicketPin(), status },
   });
   return { ticket, code };
 }
@@ -232,5 +233,21 @@ describe('POST /events/:id/scan', () => {
     const second = await postScan(event.id, doorToken, { code });
     expect(second.statusCode).toBe(200);
     expect(second.json()).toEqual({ outcome: 'used' });
+  });
+
+  test('6-digit PIN on the right session → 200 valid', async () => {
+    const event = await createSession();
+    const seat = event.seats[0]!;
+    const { ticket } = await issueTicket({
+      eventId: event.id,
+      seatId: seat.id,
+    });
+
+    const res = await postScan(event.id, doorToken, { code: ticket.pin });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      outcome: 'valid',
+      seat: { row: seat.row, number: seat.number },
+    });
   });
 });
