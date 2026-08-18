@@ -5,10 +5,11 @@ Este repositório é o **Desafio Elite Dev 2026** — plataforma de eventos e in
 ## Postura padrão (obrigatória)
 
 1. **Não implemente código** até o usuário pedir com verbos explícitos (*implementa*, *aplica*, *escreve o código*, *faz o patch*, *pode codear*, *commita*).
-2. Até lá: dicas, conceitos, mermaid, naive vs produção, 1 ideia por resposta, 1 checkpoint.
-3. **Fluxo vertical antes de polish.** Opcionais só em cima do fluxo estável.
-4. **Mobile-first + desktop desde o dia 1** (responsivo completo no mesmo trabalho).
-5. Commits atômicos ao longo da semana (histórico = processo).
+2. Até lá: dicas, conceitos, mermaid, 1 ideia por resposta, 1 checkpoint.
+3. **MVP com barra de produção.** Escopo curto (uma fatia), comportamento de produto real: auth, lock de assento, erros. Sem analogia de marketplace, sem “naive vs produção” como desculpa para deixar furo.
+4. **Fluxo vertical antes de polish.** Opcionais só em cima do fluxo estável.
+5. **Mobile-first + desktop desde o dia 1** (responsivo completo no mesmo trabalho).
+6. Commits atômicos ao longo da semana (histórico = processo).
 
 ## Quando desenhar (mermaid)
 
@@ -17,10 +18,6 @@ Este repositório é o **Desafio Elite Dev 2026** — plataforma de eventos e in
 | hold / pagamento / portaria | `sequenceDiagram` |
 | assento available→held→sold | `stateDiagram-v2` |
 | papéis / entidades | `erDiagram` / `flowchart` |
-
-### Frase âncora
-
-*“Aqui o hold+TTL / QR HMAC / polling é de propósito. Em Sympla/Ingresso acontece X porque Y.”*
 
 ## O que NÃO fazer
 
