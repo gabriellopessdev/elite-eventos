@@ -153,6 +153,24 @@ describe('CheckoutModal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('X chama onClose', () => {
+    const heldUntil = new Date(Date.now() + 10 * 60_000).toISOString();
+    const { onClose } = renderModal({ heldUntil });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    expect(onClose).toHaveBeenCalledWith('cancel');
+  });
+
+  it('clique no fundo não fecha o modal', () => {
+    const heldUntil = new Date(Date.now() + 10 * 60_000).toISOString();
+    const { onClose } = renderModal({ heldUntil });
+
+    fireEvent.click(screen.getByRole('dialog').parentElement!);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Confirmar compra' })).toBeTruthy();
+  });
+
   it('lista assentos e total', () => {
     const heldUntil = new Date(Date.now() + 10 * 60_000).toISOString();
     renderModal({ heldUntil });
