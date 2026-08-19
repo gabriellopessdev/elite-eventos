@@ -151,6 +151,29 @@ describe('events/repo hold helpers', () => {
     expect(seat.heldById).toBeNull();
   });
 
+  test('holdSeats after startsAt → HoldValidationError, seat stays AVAILABLE', async () => {
+    const event = await createEvent({
+      tmdbId: 1,
+      title: 'Hold Test',
+      posterPath: null,
+      startsAt: new Date(Date.now() - 60_000),
+      priceCents: 2000,
+      organizerId,
+    });
+    const seatId = event.seats[0]!.id;
+
+    await expect(
+      holdSeats({ eventId: event.id, userId: customerA, seatIds: [seatId] }),
+    ).rejects.toMatchObject({
+      name: 'HoldValidationError',
+      message: 'Session is no longer on sale',
+    });
+
+    const seat = await prisma.seat.findUniqueOrThrow({ where: { id: seatId } });
+    expect(seat.status).toBe(SeatStatus.AVAILABLE);
+    expect(seat.heldById).toBeNull();
+  });
+
   test('listEvents omits ARCHIVED', async () => {
     const event = await seedEvent();
     await prisma.event.update({

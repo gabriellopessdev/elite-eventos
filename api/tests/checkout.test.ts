@@ -208,6 +208,31 @@ describe('checkout + tickets API', () => {
     }
   });
 
+  test('checkout after startsAt → 400, seats remain HELD, no tickets', async () => {
+    const event = await createSession();
+    const seatIds = [event.seats[0]!.id, event.seats[1]!.id];
+    expect((await postHold(event.id, seatIds)).statusCode).toBe(200);
+
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { startsAt: new Date(Date.now() - 60_000) },
+    });
+
+    const res = await postCheckout(event.id);
+    expect(res.statusCode).toBe(400);
+    expect(res.json().message).toBe('Session is no longer on sale');
+
+    const seats = await prisma.seat.findMany({ where: { id: { in: seatIds } } });
+    expect(seats).toHaveLength(2);
+    for (const seat of seats) {
+      expect(seat.status).toBe(SeatStatus.HELD);
+      expect(seat.heldById).toBe(customerId);
+    }
+
+    const ticketCount = await prisma.ticket.count({ where: { eventId: event.id } });
+    expect(ticketCount).toBe(0);
+  });
+
   test('GET /tickets retorna os ingressos (agrupáveis por eventId)', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.9);
 

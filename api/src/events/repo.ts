@@ -3,7 +3,7 @@ import { EventStatus, Prisma, SeatStatus, TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
 import { allocateTicketPins } from '../tickets/pin.js';
 import { signTicketId } from '../tickets/qr.js';
-import { listStartsAfter } from './session-window.js';
+import { listStartsAfter, saleOpen } from './session-window.js';
 
 /** Same 8×10 as the decorative home map. Hold/lock is slice 3. */
 export const SEAT_ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const;
@@ -168,6 +168,9 @@ export async function holdSeats({ eventId, userId, seatIds }: HoldSeatsInput) {
     if (!event || event.status !== EventStatus.PUBLISHED) {
       throw new HoldValidationError('Event not found or not published');
     }
+    if (!saleOpen(event.startsAt)) {
+      throw new HoldValidationError('Session is no longer on sale');
+    }
 
     await releaseUserHolds(userId, tx);
 
@@ -251,6 +254,14 @@ const ticketCheckoutInclude = {
  */
 export async function checkoutHold({ eventId, userId, random = Math.random }: CheckoutHoldInput) {
   await releaseExpiredSeats();
+
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
+  if (!event || event.status !== EventStatus.PUBLISHED) {
+    throw new HoldValidationError('No active hold for this event');
+  }
+  if (!saleOpen(event.startsAt)) {
+    throw new HoldValidationError('Session is no longer on sale');
+  }
 
   const held = await prisma.seat.findMany({
     where: {
