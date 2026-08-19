@@ -15,11 +15,7 @@ export function TicketPaper({ ticket }: { ticket: Ticket | null }) {
     <article className="relative w-full max-w-[24rem] overflow-hidden rounded-2xl bg-surface-high shadow-elev-2">
       <div className="relative min-h-[26rem]">
         {poster ? (
-          <img
-            src={poster}
-            alt=""
-            className="absolute inset-0 size-full object-cover object-top"
-          />
+          <img src={poster} alt="" className="absolute inset-0 size-full object-cover object-top" />
         ) : (
           <div className="absolute inset-0 bg-surface-top" />
         )}
