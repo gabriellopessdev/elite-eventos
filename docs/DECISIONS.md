@@ -121,3 +121,18 @@ stateDiagram-v2
 - 404 visual: mesmo papel, vazio (sem QR/PIN/assento/pôster).
 **Consequências:** o link é o ingresso; quem o tem vê PIN e assento. Sem OG com PIN/assento. Sem `shareToken` extra.
 **Alternativas:** coluna `shareToken` / UUID nu na URL (rejeitado — ADR-003); exigir login na página (rejeitado — o ponto é mostrar sem conta); GET autenticado (rejeitado — o receptor não tem sessão do dono).
+
+## ADR-013 — Devolver ingresso apaga a linha
+
+**Status:** accepted  
+**Contexto:** fatia 7b em `feat/ticket-cancel` (2026-08-19). Cliente precisa devolver um assento ao mapa. Não há pedido, gateway nem saldo — o checkout é 25% simulado (ADR-009).  
+**Decisão:**
+- Cancelar = **apagar** o `Ticket` + assento `AVAILABLE` na mesma transação. Sem enum `CANCELED`, sem `seatId` opcional, sem estorno.
+- Se o MVP tivesse pagamento de verdade, esta fatia seria cancelamento **e** devolução do dinheiro. Não é o caso: o único efeito real é estoque.
+- Quem: só `CUSTOMER` dono. Org continua só com Encerrar (archive); archive não devolve `SOLD`.
+- Quando: `UNUSED` e `startsAt > now`. Sessão já começou → **409** (o ingresso segue até `USED`/`EXPIRED`). `ARCHIVED` **não** bloqueia (scan de arquivada já é 404).
+- HTTP: `DELETE /tickets/:id`, `requireRole(CUSTOMER)`. **204** vazio. Não é dono / id morto → **404** `{ message: 'Ticket not found' }` idênticos. `USED` / `EXPIRED` / sessão passada / corrida com scan → **409** `{ message: 'Ticket cannot be returned' }`.
+- Atômico: `deleteMany` `UNUSED` + dono + `startsAt > now`; `count !== 1` → 409. Só então `Seat` `AVAILABLE`.
+- Web: botão **Devolver ingresso** só no modal do passe da carteira, só se `canReturnTicket`. `ConfirmDialog`: “Devolver este ingresso?” / “O assento volta ao mapa. Esta ação não pode ser desfeita.” / Devolver ingresso / Manter ingresso. 204 ou 404 → fecha e a lista some sozinha (`GET /tickets`). 409 → alerta no passe. `/t/:code` sem Devolver. Sem toast.
+**Consequências:** HMAC/PIN mortos caem em 404/`invalid` (não vazam “cancelado”). Checkout pode emitir ingresso novo no mesmo assento. Polling do mapa é a fatia seguinte.
+**Alternativas:** status `CANCELED` + `seatId` nullable (rejeitado — audit de dinheiro que não existe); estorno (rejeitado — sem pagamento); botão na listagem (rejeitado — botão aninhado no talão).
