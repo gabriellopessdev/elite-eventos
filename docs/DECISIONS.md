@@ -78,12 +78,27 @@ stateDiagram-v2
 - API: `POST /events/:id/scan` `{ code }`, `requireRole(DOOR)`.
 - Sessão alvo: `Event` `PUBLISHED`; arquivada ou inexistente → **404**.
 - Código vazio → **400**; org/cliente/anônimo → **401/403**.
-- Sucesso **200** `{ outcome: 'valid' | 'invalid' | 'used' | 'wrong_event', seat?: { row, number } }`.
-- Ordem de avaliação (não vazar existência de UUID):
-  1. `code` é 6 dígitos → lookup `(eventId, pin)`. Ausente → `invalid`. `USED` → `used`. Senão `updateMany` `UNUSED`→`USED` → `valid`.
+- Sucesso **200** `{ outcome: 'valid' | 'invalid' | 'used' | 'wrong_event' | 'expired', seat?: { row, number } }`.
+- Ordem de avaliação (não vazar existência de UUID): `invalid` → `wrong_event` → `used` → `expired` → `valid`.
+  1. `code` é 6 dígitos → lookup `(eventId, pin)`. Ausente → `invalid`. `USED` → `used`. `EXPIRED` → `expired`. Senão `updateMany` `UNUSED`→`USED` → `valid`.
   2. HMAC inválido, payload lixo ou `ticketId` inexistente → `invalid`.
-  3. `eventId` do ticket ≠ `:id` da rota → `wrong_event` (mesmo se já `USED`).
+  3. `eventId` do ticket ≠ `:id` da rota → `wrong_event` (mesmo se já `USED` ou `EXPIRED`).
   4. `USED` na sessão certa → `used`.
-  5. Senão `updateMany` `UNUSED`→`USED` (atômico) → `valid` + assento.
+  5. `EXPIRED` na sessão certa → `expired`.
+  6. Senão `updateMany` `UNUSED`→`USED` (atômico) → `valid` + assento.
 - Web (`/door`): seletor de sessão + filtro data/título no cliente; câmera (`jsQR`) lê o HMAC; campo manual só 6 dígitos; válido consome na hora; permanece na rota; pausa **2 s** e ignora o mesmo `code` repetido.
 **Alternativas:** GET idempotente (rejeitado — portaria precisa marcar uso); validar só UUID no DB sem HMAC (rejeitado — ADR-003); TOTP na porta (rejeitado — ADR-003).
+
+## ADR-011 — Dois relógios: venda vs scan
+
+**Status:** accepted  
+**Contexto:** fatia #15 — a sessão some do cartaz no `startsAt`, mas a fila da porta ainda precisa validar depois do horário; `UNUSED` depois da graça vira `EXPIRED`. Relógio de venda ≠ archive (ADR-008) e ≠ cancel (7b).  
+**Decisão:**
+- Venda: `GET /events` público lista `PUBLISHED` com `startsAt > now`. `holdSeats` / `checkoutHold` recusam se `startsAt <= now` com `HoldValidationError('Session is no longer on sale')` → **400** (não 404: `GET /events/:id` continua 200).
+- Scan: `SESSION_SCAN_GRACE_MS = 3 * 60 * 60 * 1000`. `UNUSED` cujo `startsAt + 3h <= now` vira `EXPIRED` (lazy). `USED` não muda. Assento permanece `SOLD`.
+- `GET /events` + Bearer `DOOR` válido: `PUBLISHED` e `startsAt > now - 3h`. Token inválido, ausente ou de outro papel → janela de venda. Este GET nunca devolve 401.
+- Scan 200 `{ outcome: 'expired' }` na ordem: `invalid` → `wrong_event` → `used` → `expired` → `valid`. PIN de outra sessão continua `invalid`.
+- Relógio ≠ archive: `ARCHIVED` ainda 404 no scan.
+- Cancel (7b) só `UNUSED` de sessão futura — fora desta fatia.
+**Consequências:** `TicketStatus` ganha `EXPIRED`. Sem job/cron nesta fatia (lazy). Sem `endsAt` no Event.
+**Alternativas:** cortar venda e scan no mesmo `startsAt` (rejeitado — fila da porta depois do horário); 404 no hold (rejeitado — a sessão existe, só não vende).
