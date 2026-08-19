@@ -15,6 +15,13 @@ export function seatLabel(seat: Ticket['seat']) {
   return seat ? `${seat.row}${seat.number}` : '—';
 }
 
+export function canReturnTicket(ticket: Ticket, nowMs: number) {
+  if (ticket.status !== 'UNUSED') return false;
+  const startsAt = ticket.event?.startsAt;
+  if (!startsAt) return false;
+  return new Date(startsAt).getTime() > nowMs;
+}
+
 export function ticketShareUrl(origin: string, code: string) {
   return `${origin.replace(/\/$/, '')}/t/${code}`;
 }

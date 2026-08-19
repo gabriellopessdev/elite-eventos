@@ -10,8 +10,8 @@ Uma linha = uma entrega. **Fluxo vertical antes dos opcionais.**
 | 3 | Mapa assentos + hold TTL 10 min + lock atômico | ✅ | double-sell impossível — junto com #4 em `feat/seat-hold` |
 | 4 | Pagamento simulado ok/recusa → ingresso + QR HMAC | ✅ | meus ingressos — junto com #3 em `feat/seat-hold` |
 | 5 | Portaria: câmera + digitação · válido/inválido/usado/evento errado | ✅ | fluxo ponta a ponta — em `feat/door` |
-| 6 | Link compartilhável do ingresso | ⬜ | abre ingresso read-only — em `feat/ticket-share` |
-| 7 | Busca/filtro · painel org · cancelamento+estoque | ⬜ | opcionais produto |
+| 6 | Link compartilhável do ingresso | ✅ | abre ingresso read-only — em `feat/ticket-share` |
+| 7 | Cancelamento+estoque | ⬜ | cliente devolve UNUSED futuro — em `feat/ticket-cancel`. Busca e painel org: depois do #8. |
 | 8 | Tempo real no mapa (polling→WS) | ⬜ | outros veem hold |
 | 9 | Testes de domínio + README Uso de IA + deploy | ⬜ | entrega |
 

@@ -48,12 +48,17 @@ export type TicketStubbookProps = {
   tickets: Ticket[];
   /** Abre esta sessão no mount (ex. pós-checkout). */
   defaultExpandedEventId?: string;
+  onTicketReturned: () => void;
 };
 
 /**
  * Carteira: resumo por sessão; toque no ingresso abre o passe (QR + PIN).
  */
-export function TicketStubbook({ tickets, defaultExpandedEventId }: TicketStubbookProps) {
+export function TicketStubbook({
+  tickets,
+  defaultExpandedEventId,
+  onTicketReturned,
+}: TicketStubbookProps) {
   const baseId = useId();
   const nights = toSessionNights(tickets);
   const [openEventId, setOpenEventId] = useState<string | null>(() =>
@@ -155,7 +160,14 @@ export function TicketStubbook({ tickets, defaultExpandedEventId }: TicketStubbo
       })}
 
       {openTicket ? (
-        <TicketPassModal ticket={openTicket} onClose={() => setOpenTicket(null)} />
+        <TicketPassModal
+          ticket={openTicket}
+          onClose={() => setOpenTicket(null)}
+          onReturned={() => {
+            setOpenTicket(null);
+            onTicketReturned();
+          }}
+        />
       ) : null}
     </div>
   );

@@ -174,7 +174,11 @@ export function TicketsPage() {
               Nenhum ingresso bate com os filtros.
             </p>
           ) : (
-            <TicketStubbook key={`${sessionFilter}-${statusFilter}`} tickets={visible} />
+            <TicketStubbook
+              key={`${sessionFilter}-${statusFilter}`}
+              tickets={visible}
+              onTicketReturned={() => setAttempt((n) => n + 1)}
+            />
           )}
         </>
       )}

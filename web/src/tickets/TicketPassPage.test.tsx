@@ -75,6 +75,8 @@ describe('TicketPassPage /t/:code', () => {
     renderPass();
 
     expect(await screen.findByRole('heading', { name: 'Assento A1' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Devolver ingresso' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Compartilhar' })).toBeNull();
     expect(screen.getByText('384 291')).toBeTruthy();
     expect(screen.getByText('Duna')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Elite Eventos' }).getAttribute('href')).toBe(

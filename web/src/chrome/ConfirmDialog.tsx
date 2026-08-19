@@ -48,7 +48,7 @@ export function ConfirmDialog({
      pintava por cima do diálogo. */
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/65 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       role="presentation"
     >
       <div
