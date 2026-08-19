@@ -22,19 +22,12 @@ import {
   type ScanOutcome,
   type ScanResult,
 } from '../events/api';
+import { sessionDay, titleMatches } from '../events/session-day';
 import { QrCamera } from './QrCamera';
 
 const SAME_CODE_PAUSE_MS = 2000;
 const RESULT_MS = 2000;
 const HISTORY_SIZE = 4;
-
-export function sessionDay(iso: string): string {
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
 
 function outcomeCopy(result: ScanResult): string {
   switch (result.outcome) {
@@ -166,10 +159,7 @@ export function DoorPage() {
 
   const filtered = useMemo(() => {
     return (events ?? []).filter((event) => {
-      if (
-        titleQuery.trim() &&
-        !event.title.toLowerCase().includes(titleQuery.trim().toLowerCase())
-      ) {
+      if (!titleMatches(event.title, titleQuery)) {
         return false;
       }
       if (dateFilter && sessionDay(event.startsAt) !== dateFilter) {
