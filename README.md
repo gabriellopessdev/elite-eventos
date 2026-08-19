@@ -4,7 +4,7 @@ Plataforma de **eventos e ingressos** — Desafio Elite Dev 2026.
 
 Organizador publica eventos a partir do **TMDb**; cliente escolhe **assento** (hold + timer 10 min), paga de forma simulada, recebe ingresso com **QR** e **PIN de 6 dígitos**; portaria valida na entrada.
 
-> Escopo pequeno de propósito. O que conta: decisões, fluxo completo, mão no resultado (não AI slop).
+**Demo:** [https://elite-eventos-web-production.up.railway.app/](https://elite-eventos-web-production.up.railway.app/)
 
 ## Stack
 
@@ -16,9 +16,16 @@ Organizador publica eventos a partir do **TMDb**; cliente escolhe **assento** (h
 | DB        | Postgres                                                     |
 | Catálogo  | TMDb                                                         |
 | Qualidade | ESLint + Prettier · Vitest · GitHub Actions · Docker Compose |
+| Deploy    | Railway (Postgres + API + Web, duas origens)                 |
 
 
 
+
+## Produção
+
+O front em produção é o link da demo acima. API e web são serviços separados: o Vite **não** faz proxy lá. O web leva `VITE_API_URL` no **build** (sem barra no final); a API libera o host do web em `WEB_ORIGIN`.
+
+O mapa usa **polling** (~2–3 s), não WebSocket. Lock de assento e TTL de 10 min vivem no Postgres. Redis, filas e WS ficam para se o intervalo do poll virar custo — não estão neste MVP.
 
 ## Rodar local
 
@@ -31,8 +38,8 @@ cd api && npm install && npm run dev
 cd web && npm install && npm run dev
 ```
 
-- API: [http://localhost:3000/health](http://localhost:3000/health)  
-- Web: [http://localhost:5173/login](http://localhost:5173/login)  
+- API: [http://localhost:3000/health](http://localhost:3000/health)
+- Web: [http://localhost:5173/login](http://localhost:5173/login)
 - O Vite encaminha `/auth`, `/movies`, `/events` e `/tickets` para a API (`localhost:3000`)
 - Em `api/.env`, além do JWT: `QR_HMAC_SECRET` (assinatura do QR) e opcional `SEAT_HOLD_TTL_MINUTES=10`
 
@@ -85,7 +92,20 @@ Perfil: `GET /auth/me` com `Authorization: Bearer …`.
 
 ## Uso de IA
 
-(Documentar ao longo do desafio: ferramentas, o que a IA fez, o que você decidiu sem IA.)
+Ferramentas: **Cursor**, **Claude Code** e **Claude Design** (telas).
+
+Eu escolhi a stack, propus os testes de cada fatia, defini a paleta e ajustei a UI. O Claude Design ajudou a desenhar as telas; a IA no Cursor/Claude Code implementou o código. Eu pedi para registrar as decisões em ADRs — [docs/DECISIONS.md](docs/DECISIONS.md).
+
+Uma fatia do [ROADMAP](docs/ROADMAP.md) por vez. Eu reviso o patch e só então commit.
+
+O que eu decidi no produto:
+
+- QR = `ticketId.sig` (HMAC) + PIN de 6 dígitos **por sessão**. Não TOTP (o código mudaria na fila) e não UUID nu no QR.
+- Hold atômico (`UPDATE … WHERE status='available'`) e TTL de **10 min no servidor**. O timer no React só espelha `held_until`.
+- Checkout com ~**25% de recusa** no servidor (402; o hold permanece).
+- Espelho do mapa = **polling** do `GET /events/:id`. WebSocket só se o atraso deixar de ser aceitável (ADR-002 / ADR-014).
+
+
 
 ## Docs
 
