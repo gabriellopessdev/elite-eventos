@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 import { clearSeatSelectionCache, type Seat } from './api';
+import { SEAT_MAP_POLL_MS } from './seat-map-poll';
 
 const dune = {
   id: 'evt-dune',
@@ -124,6 +125,7 @@ describe('detalhe da sessão', () => {
     localStorage.clear();
     sessionStorage.clear();
     clearSeatSelectionCache();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -415,6 +417,105 @@ describe('detalhe da sessão', () => {
     expect(await screen.findByRole('button', { name: 'Encerrar sessão' })).toBeTruthy();
     expect(screen.getByText('Fora de venda')).toBeTruthy();
   });
+
+  it('poll pinta hold do outro sem skeleton e mantém a seleção livre', async () => {
+    let held = false;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        const map = seats([
+          ['A', 1],
+          ['A', 2],
+        ]);
+        if (held) map[0] = { ...map[0]!, status: 'HELD' };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ ...dune, seats: map }),
+        };
+      }),
+    );
+
+    renderAt('/events/evt-dune');
+    fireEvent.click(await screen.findByRole('button', { name: 'A2 disponível' }));
+    expect(screen.getByLabelText('A2 selecionado')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Duna' })).toBeTruthy();
+
+    held = true;
+    await waitFor(
+      () => {
+        expect(screen.getByLabelText('A1 reservado')).toBeTruthy();
+      },
+      { timeout: SEAT_MAP_POLL_MS + 1500 },
+    );
+
+    expect(screen.queryByRole('button', { name: 'A1 disponível' })).toBeNull();
+    expect(screen.getByLabelText('A2 selecionado')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Duna' })).toBeTruthy();
+    expect(screen.queryByText('Não foi possível carregar a sessão')).toBeNull();
+  }, 10_000);
+
+  it('sessão passada não volta a buscar o mapa', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...dune,
+        startsAt: '2020-01-01T20:00:00.000Z',
+        seats: seats([
+          ['A', 1],
+          ['A', 2],
+        ]),
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('/events/evt-dune');
+    expect(await screen.findByText('Fora de venda')).toBeTruthy();
+    const afterLoad = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, SEAT_MAP_POLL_MS + 200);
+      });
+    });
+    expect(fetchMock.mock.calls.length).toBe(afterLoad);
+  }, 10_000);
+
+  it('aba escondida não polla', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...dune,
+        seats: seats([
+          ['A', 1],
+          ['A', 2],
+        ]),
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+
+    renderAt('/events/evt-dune');
+    expect(await screen.findByRole('heading', { name: 'Duna' })).toBeTruthy();
+    const afterLoad = fetchMock.mock.calls.length;
+
+    await act(async () => {
+      await new Promise((resolve) => {
+        setTimeout(resolve, SEAT_MAP_POLL_MS + 200);
+      });
+    });
+    expect(fetchMock.mock.calls.length).toBe(afterLoad);
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
+  }, 10_000);
 
   it('sessão inexistente volta ao cartaz', async () => {
     vi.stubGlobal(

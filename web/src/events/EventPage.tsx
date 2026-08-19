@@ -31,6 +31,7 @@ import {
   type EventDetail,
   type Seat,
 } from './api';
+import { SEAT_MAP_POLL_MS, nextSelectedIdsAfterPoll, shouldPollSeatMap } from './seat-map-poll';
 
 const MAX_SEATS = 8;
 
@@ -225,6 +226,49 @@ function EventSession({ id }: { id: string }) {
       cancelled = true;
     };
   }, [id, accessToken, role, attempt]);
+
+  const eventRef = useRef(event);
+  const hasMap = event != null;
+
+  useEffect(() => {
+    eventRef.current = event;
+  }, [event]);
+
+  useEffect(() => {
+    if (!hasMap || error) return;
+
+    let cancelled = false;
+    const timer = setInterval(() => {
+      const current = eventRef.current;
+      if (!current) return;
+      if (
+        !shouldPollSeatMap({
+          startsAt: current.startsAt,
+          nowMs: Date.now(),
+          visible: document.visibilityState === 'visible',
+        })
+      ) {
+        return;
+      }
+
+      void getEvent(id, accessToken)
+        .then((next) => {
+          if (cancelled || !next) return;
+          setEvent(next);
+          setSelectedIds((prev) =>
+            nextSelectedIdsAfterPoll(prev, next.seats, next.myHold?.seatIds),
+          );
+        })
+        .catch(() => {
+          /* poll silencioso — não skeleton, não ErrorNotice */
+        });
+    }, SEAT_MAP_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [id, accessToken, error, hasMap]);
 
   function toggleSeat(seat: Seat) {
     if (!event || new Date(event.startsAt).getTime() <= Date.now()) return;
