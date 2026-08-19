@@ -7,6 +7,7 @@ import { TicketPassModal } from './TicketPassModal';
 const statusLabel: Record<Ticket['status'], string> = {
   UNUSED: 'Não usado',
   USED: 'Usado',
+  EXPIRED: 'Expirado',
 };
 
 type SessionNight = {
@@ -121,7 +122,7 @@ export function TicketStubbook({ tickets, defaultExpandedEventId }: TicketStubbo
               >
                 <ul className="m-0 grid list-none gap-2 p-0">
                   {night.tickets.map((ticket) => {
-                    const used = ticket.status === 'USED';
+                    const used = ticket.status === 'USED' || ticket.status === 'EXPIRED';
                     return (
                       <li key={ticket.id}>
                         <button

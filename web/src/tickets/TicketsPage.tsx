@@ -22,6 +22,7 @@ const STATUS_FILTERS: ReadonlyArray<{ value: StatusFilter; label: string }> = [
   { value: 'ALL', label: 'Todos' },
   { value: 'UNUSED', label: 'Não usados' },
   { value: 'USED', label: 'Usados' },
+  { value: 'EXPIRED', label: 'Expirados' },
 ];
 
 function TicketsSkeleton() {

@@ -37,7 +37,7 @@ export type Ticket = {
   seatId: string;
   code: string;
   pin: string;
-  status: 'UNUSED' | 'USED';
+  status: 'UNUSED' | 'USED' | 'EXPIRED';
   createdAt: string;
   event?: {
     id: string;
