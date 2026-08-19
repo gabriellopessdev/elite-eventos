@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
+import { sessionDay } from './session-day';
 
 const dune = {
   id: 'evt-dune',
@@ -76,10 +77,12 @@ describe('vitrine de sessões', () => {
       '/events/evt-b',
       '/events/evt-c',
     ]);
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(2);
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).filter((h) => h.textContent !== 'Filtros'),
+    ).toHaveLength(2);
   });
 
-  it('mostra vazio quando não há sessões', async () => {
+  it('mostra vazio quando não há sessões e esconde os filtros', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -91,6 +94,68 @@ describe('vitrine de sessões', () => {
     renderAt('/events');
 
     expect(await screen.findByRole('heading', { name: 'O cartaz abre em breve' })).toBeTruthy();
+    expect(screen.queryByLabelText('Data')).toBeNull();
+    expect(screen.queryByLabelText('Título')).toBeNull();
+  });
+
+  it('filtra por título e por data sem desagrupar os dias', async () => {
+    const bacurau = {
+      ...dune,
+      id: 'evt-bac',
+      title: 'Bacurau',
+      startsAt: '2026-10-01T18:00:00.000Z',
+    };
+    const outroDia = {
+      ...dune,
+      id: 'evt-cid',
+      title: 'Cidade de Deus',
+      startsAt: '2026-10-05T12:00:00.000Z',
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ events: [dune, bacurau, outroDia] }),
+      }),
+    );
+
+    renderAt('/events');
+    expect(await screen.findByRole('link', { name: /Duna/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'bacur' } });
+    expect(screen.getByRole('link', { name: /Bacurau/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Duna/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Cidade de Deus/ })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Data'), {
+      target: { value: sessionDay(outroDia.startsAt) },
+    });
+    expect(screen.getByRole('link', { name: /Cidade de Deus/ })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Duna/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Bacurau/ })).toBeNull();
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).filter((h) => h.textContent !== 'Filtros'),
+    ).toHaveLength(1);
+  });
+
+  it('recorte vazio mantém o cartaz e não usa o empty do cinema', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ events: [dune] }),
+      }),
+    );
+
+    renderAt('/events');
+    expect(await screen.findByRole('link', { name: /Duna/ })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'zzzz' } });
+    expect(screen.getByText(/Nenhuma sessão bate com os filtros/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Próximas sessões' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'O cartaz abre em breve' })).toBeNull();
   });
 
   it('organizador vê atalho para nova sessão', async () => {

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CinemaStage } from '../cinema';
 import { EmptyNotice, ErrorNotice } from '../chrome/states';
-import { pill, skeleton, surface } from '../ui';
+import { fieldInput, fieldLabel, pill, skeleton, surface, surfaceHigh } from '../ui';
 import { ChevronIcon } from '../icons';
 import { formatPrice, listEvents, posterUrl, type EventSummary } from './api';
+import { sessionDay, titleMatches } from './session-day';
 
 function dayKey(date: Date) {
   const y = date.getFullYear();
@@ -119,6 +120,8 @@ export function EventsPage() {
   const [events, setEvents] = useState<EventSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [titleQuery, setTitleQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const retry = useCallback(() => {
     setError(null);
@@ -140,13 +143,20 @@ export function EventsPage() {
     };
   }, [attempt]);
 
-  const days = events ? toDays(events) : [];
+  const visible = useMemo(() => {
+    return (events ?? []).filter((event) => {
+      if (!titleMatches(event.title, titleQuery)) return false;
+      if (dateFilter && sessionDay(event.startsAt) !== dateFilter) return false;
+      return true;
+    });
+  }, [events, titleQuery, dateFilter]);
+
+  const days = events ? toDays(visible) : [];
+  const hasCatalog = Boolean(events && events.length > 0);
 
   return (
     <CinemaStage
-      contentClassName={
-        events && events.length > 0 ? 'items-start justify-center' : 'items-center justify-center'
-      }
+      contentClassName={hasCatalog ? 'items-start justify-center' : 'items-center justify-center'}
     >
       {error ? (
         <div className="w-full max-w-md">
@@ -165,7 +175,7 @@ export function EventsPage() {
         </div>
       ) : null}
 
-      {days.length > 0 ? (
+      {hasCatalog ? (
         <div className="grid w-full max-w-4xl gap-7">
           <header className="grid gap-2">
             <span className={`${pill} justify-self-start`}>Em cartaz</span>
@@ -174,20 +184,53 @@ export function EventsPage() {
             </h1>
           </header>
 
-          {days.map((day) => (
-            <section key={day.key} className="grid gap-2.5">
-              <h2 className="m-0 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
-                {day.label}
-              </h2>
-              <ul className="m-0 grid list-none gap-2 p-0">
-                {day.events.map((event) => (
-                  <li key={event.id}>
-                    <SessionRow event={event} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+          <section className={`${surfaceHigh} grid gap-3 p-4`}>
+            <h2 className="m-0 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+              Filtros
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className={`grid gap-1.5 sm:col-span-1 ${fieldLabel}`} htmlFor="events-date">
+                Data
+                <input
+                  id="events-date"
+                  type="date"
+                  className={`${fieldInput} font-normal`}
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                />
+              </label>
+              <label className={`grid gap-1.5 sm:col-span-3 ${fieldLabel}`} htmlFor="events-title">
+                Título
+                <input
+                  id="events-title"
+                  className={`${fieldInput} font-normal`}
+                  value={titleQuery}
+                  onChange={(e) => setTitleQuery(e.target.value)}
+                />
+              </label>
+            </div>
+          </section>
+
+          {days.length > 0 ? (
+            days.map((day) => (
+              <section key={day.key} className="grid gap-2.5">
+                <h2 className="m-0 text-[11px] font-bold tracking-[0.14em] text-muted uppercase">
+                  {day.label}
+                </h2>
+                <ul className="m-0 grid list-none gap-2 p-0">
+                  {day.events.map((event) => (
+                    <li key={event.id}>
+                      <SessionRow event={event} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          ) : (
+            <p className={`${surface} m-0 px-4 py-8 text-center text-muted`}>
+              Nenhuma sessão bate com os filtros.
+            </p>
+          )}
         </div>
       ) : null}
     </CinemaStage>
