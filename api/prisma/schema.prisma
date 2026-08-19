@@ -60,6 +60,7 @@ enum EventStatus {
 enum TicketStatus {
   UNUSED
   USED
+  EXPIRED
 }
 
 model Event {
