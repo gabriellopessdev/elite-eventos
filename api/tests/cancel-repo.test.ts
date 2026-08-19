@@ -125,9 +125,9 @@ describe('tickets/repo returnTicket', () => {
     const event = await seedFutureSession('Cancel 404');
     const issued = await issueTicket({ eventId: event.id, seatId: event.seats[0]!.id });
 
-    await expect(
-      returnTicket({ ticketId: issued.id, userId: organizerId }),
-    ).rejects.toBeInstanceOf(TicketReturnNotFoundError);
+    await expect(returnTicket({ ticketId: issued.id, userId: organizerId })).rejects.toBeInstanceOf(
+      TicketReturnNotFoundError,
+    );
     await expect(
       returnTicket({ ticketId: randomUUID(), userId: customerId }),
     ).rejects.toBeInstanceOf(TicketReturnNotFoundError);
@@ -151,12 +151,12 @@ describe('tickets/repo returnTicket', () => {
     });
     const future = await issueTicket({ eventId: event.id, seatId: event.seats[2]!.id });
 
-    await expect(
-      returnTicket({ ticketId: used.id, userId: customerId }),
-    ).rejects.toBeInstanceOf(TicketReturnConflictError);
-    await expect(
-      returnTicket({ ticketId: expired.id, userId: customerId }),
-    ).rejects.toBeInstanceOf(TicketReturnConflictError);
+    await expect(returnTicket({ ticketId: used.id, userId: customerId })).rejects.toBeInstanceOf(
+      TicketReturnConflictError,
+    );
+    await expect(returnTicket({ ticketId: expired.id, userId: customerId })).rejects.toBeInstanceOf(
+      TicketReturnConflictError,
+    );
     await expect(
       returnTicket({
         ticketId: future.id,
@@ -165,7 +165,9 @@ describe('tickets/repo returnTicket', () => {
       }),
     ).rejects.toBeInstanceOf(TicketReturnConflictError);
 
-    expect(await prisma.seat.findUniqueOrThrow({ where: { id: event.seats[0]!.id } })).toMatchObject({
+    expect(
+      await prisma.seat.findUniqueOrThrow({ where: { id: event.seats[0]!.id } }),
+    ).toMatchObject({
       status: SeatStatus.SOLD,
     });
     expect(await prisma.ticket.findUniqueOrThrow({ where: { id: future.id } })).toMatchObject({
@@ -192,8 +194,8 @@ describe('tickets/repo returnTicket', () => {
     const event = await seedFutureSession('Cancel twice');
     const issued = await issueTicket({ eventId: event.id, seatId: event.seats[0]!.id });
     await returnTicket({ ticketId: issued.id, userId: customerId });
-    await expect(
-      returnTicket({ ticketId: issued.id, userId: customerId }),
-    ).rejects.toBeInstanceOf(TicketReturnNotFoundError);
+    await expect(returnTicket({ ticketId: issued.id, userId: customerId })).rejects.toBeInstanceOf(
+      TicketReturnNotFoundError,
+    );
   });
 });

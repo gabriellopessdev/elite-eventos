@@ -66,7 +66,11 @@ describe('canReturnTicket', () => {
     expect(canReturnTicket({ ...base, status: 'EXPIRED' }, now)).toBe(false);
     expect(
       canReturnTicket(
-        { ...base, status: 'UNUSED', event: { ...base.event, startsAt: '2026-08-01T20:00:00.000Z' } },
+        {
+          ...base,
+          status: 'UNUSED',
+          event: { ...base.event, startsAt: '2026-08-01T20:00:00.000Z' },
+        },
         now,
       ),
     ).toBe(false);

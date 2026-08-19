@@ -337,18 +337,22 @@ describe('TicketsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Devolver ingresso' }));
     const confirm = await screen.findByRole('alertdialog');
-    expect(screen.getByText('O assento volta ao mapa. Esta ação não pode ser desfeita.')).toBeTruthy();
+    expect(
+      screen.getByText('O assento volta ao mapa. Esta ação não pode ser desfeita.'),
+    ).toBeTruthy();
 
     fireEvent.click(within(confirm).getByRole('button', { name: 'Manter ingresso' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit)?.method === 'DELETE')).toBe(
-      false,
-    );
+    expect(
+      fetchMock.mock.calls.some(([, init]) => (init as RequestInit)?.method === 'DELETE'),
+    ).toBe(false);
 
     fireEvent.click(screen.getByRole('button', { name: 'Devolver ingresso' }));
     fireEvent.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Devolver ingresso' }),
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Devolver ingresso',
+      }),
     );
 
     await waitFor(() => {
@@ -385,7 +389,9 @@ describe('TicketsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Assento A1/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Devolver ingresso' }));
     fireEvent.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Devolver ingresso' }),
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Devolver ingresso',
+      }),
     );
 
     expect((await screen.findByRole('alert')).textContent).toBe(

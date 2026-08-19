@@ -120,7 +120,9 @@ export function TicketPassModal({ ticket, onClose, onReturned }: TicketPassModal
             <p className="m-0 max-w-full text-center font-mono text-[2.15rem] leading-none font-extrabold tracking-[0.18em] text-ink select-all tabular-nums">
               {pin}
             </p>
-            <p className="m-0 text-center text-[13px] text-faint">Mostre o QR ou dite os 6 dígitos</p>
+            <p className="m-0 text-center text-[13px] text-faint">
+              Mostre o QR ou dite os 6 dígitos
+            </p>
             <button
               type="button"
               className={`${btnGhost} min-h-11 w-full`}
@@ -129,7 +131,9 @@ export function TicketPassModal({ ticket, onClose, onReturned }: TicketPassModal
               <ShareIcon size={18} />
               Compartilhar
             </button>
-            {shareHint ? <p className="m-0 text-center text-[13px] text-faint">{shareHint}</p> : null}
+            {shareHint ? (
+              <p className="m-0 text-center text-[13px] text-faint">{shareHint}</p>
+            ) : null}
             {canReturn ? (
               <button
                 type="button"
