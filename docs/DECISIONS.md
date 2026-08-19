@@ -104,3 +104,20 @@ stateDiagram-v2
 - Cancel (7b) só `UNUSED` de sessão futura — fora desta fatia.
 **Consequências:** `TicketStatus` ganha `EXPIRED`. Sem job/cron nesta fatia (lazy). Sem `endsAt` no Event. Sem catálogo extra de org no `GET /events`.
 **Alternativas:** cortar venda e scan no mesmo `startsAt` (rejeitado — fila da porta depois do horário); 404 no hold (rejeitado — a sessão existe, só não vende); `GET /events` + Bearer ORGANIZER incluir sessão passada para Encerrar (rejeitado neste MVP — painel org, ADR-008).
+
+## ADR-012 — Link do ingresso = HMAC na URL
+
+**Status:** accepted  
+**Contexto:** fatia #6 em `feat/ticket-share` (2026-08-19) — o dono precisa mostrar o ingresso a outra pessoa (tela, WhatsApp) sem login nem coluna extra; o HMAC já existe (ADR-003).  
+**Decisão:**
+- Capability URL: quem tem o link vê QR + PIN + assento. Segredo = `Ticket.code` (`ticketId.sig`). Sem coluna nova. UUID nu rejeitado (ADR-003).
+- Web: `/t/:code` fora do Shell (como `/login`). Marca “Elite Eventos” → `/events`. Página ignora sessão.
+- API: `GET /tickets/pass/:code` sem `preHandler`. `verifyTicketCode` + lookup. HMAC lixo ou id inexistente → **404** `{ message: 'Ticket not found' }` idênticos. Nunca 401 neste GET.
+- JSON: `{ ticket }` com `id, eventId, seatId, code, pin, status, createdAt, event { id, title, posterPath, startsAt }, seat { row, number }`. **Sem `userId`.** `Cache-Control: no-store`.
+- Lazy `expireTicketsPastWindow` antes do lookup (igual `listTicketsForUser`).
+- `USED` / `EXPIRED`: 200, mesma arte, QR velado. Não consome `UNUSED→USED`.
+- Share: um botão no modal da carteira; `navigator.share({ url })` ou clipboard; payload = só a URL (`origin + '/t/' + code`).
+- QR da porta permanece HMAC puro (câmera lê `ticketId.sig`, não a URL).
+- 404 visual: mesmo papel, vazio (sem QR/PIN/assento/pôster).
+**Consequências:** o link é o ingresso; quem o tem vê PIN e assento. Sem OG com PIN/assento. Sem `shareToken` extra.
+**Alternativas:** coluna `shareToken` / UUID nu na URL (rejeitado — ADR-003); exigir login na página (rejeitado — o ponto é mostrar sem conta); GET autenticado (rejeitado — o receptor não tem sessão do dono).

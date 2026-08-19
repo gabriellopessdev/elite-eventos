@@ -1,51 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import QRCode from 'qrcode';
 import type { Ticket } from '../events/api';
-import { badgeOk, badgeUsed, skeleton } from '../ui';
-import { CheckIcon, CloseIcon } from '../icons';
-
-function formatTicketPin(pin: string) {
-  if (!/^\d{6}$/.test(pin)) return pin;
-  return `${pin.slice(0, 3)} ${pin.slice(3)}`;
-}
-
-const statusLabel: Record<Ticket['status'], string> = {
-  UNUSED: 'Não usado',
-  USED: 'Usado',
-  EXPIRED: 'Expirado',
-};
-
-function TicketQr({ code, used }: { code: string; used: boolean }) {
-  const [src, setSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    QRCode.toDataURL(code, { margin: 1, width: 280 })
-      .then((url) => {
-        if (!cancelled) setSrc(url);
-      })
-      .catch(() => {
-        if (!cancelled) setSrc(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [code]);
-
-  if (!src) {
-    return (
-      <div className={`${skeleton} size-44`} aria-hidden="true" data-testid="qr-placeholder" />
-    );
-  }
-
-  return (
-    <div className="relative flex">
-      <img src={src} alt="" className="size-44 rounded-xl bg-white p-2" width={176} height={176} />
-      {used ? <div className="absolute inset-0 rounded-xl bg-surface-high/65" /> : null}
-    </div>
-  );
-}
+import { badgeOk, badgeUsed, btnGhost } from '../ui';
+import { CheckIcon, CloseIcon, ShareIcon } from '../icons';
+import { TicketQr } from './TicketQr';
+import {
+  TICKET_STATUS_LABEL,
+  formatTicketPin,
+  seatLabel,
+  shareTicketPass,
+  ticketShareUrl,
+} from './pass';
 
 export type TicketPassModalProps = {
   ticket: Ticket;
@@ -55,9 +20,21 @@ export type TicketPassModalProps = {
 /** QR (HMAC) + PIN de 6 dígitos. Overlay fecha: o passe é só leitura. */
 export function TicketPassModal({ ticket, onClose }: TicketPassModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [shareHint, setShareHint] = useState<string | null>(null);
   const used = ticket.status === 'USED' || ticket.status === 'EXPIRED';
-  const seat = ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '—';
+  const seat = seatLabel(ticket.seat);
   const pin = formatTicketPin(ticket.pin);
+
+  async function onShare() {
+    const url = ticketShareUrl(window.location.origin, ticket.code);
+    try {
+      const result = await shareTicketPass(url);
+      setShareHint(result === 'copied' ? 'Link copiado' : null);
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setShareHint('Não foi possível compartilhar');
+    }
+  }
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -103,7 +80,7 @@ export function TicketPassModal({ ticket, onClose }: TicketPassModalProps) {
           </h2>
           <span className={used ? badgeUsed : badgeOk}>
             {used ? null : <CheckIcon size={14} strokeWidth={2.5} />}
-            {statusLabel[ticket.status]}
+            {TICKET_STATUS_LABEL[ticket.status]}
           </span>
         </div>
 
@@ -113,6 +90,15 @@ export function TicketPassModal({ ticket, onClose }: TicketPassModalProps) {
           {pin}
         </p>
         <p className="m-0 text-center text-[13px] text-faint">Mostre o QR ou dite os 6 dígitos</p>
+        <button
+          type="button"
+          className={`${btnGhost} min-h-11 w-full`}
+          onClick={() => void onShare()}
+        >
+          <ShareIcon size={18} />
+          Compartilhar
+        </button>
+        {shareHint ? <p className="m-0 text-center text-[13px] text-faint">{shareHint}</p> : null}
       </div>
     </div>,
     document.body,

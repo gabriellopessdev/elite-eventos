@@ -204,6 +204,21 @@ export async function listMyTickets(accessToken: string): Promise<Ticket[]> {
   return body.tickets;
 }
 
+export async function getSharedTicket(code: string): Promise<Ticket> {
+  const res = await apiFetch(`/tickets/pass/${code}`);
+  if (res.status === 404) {
+    throw new ApiError('Ingresso não encontrado.', 404);
+  }
+  if (!res.ok) {
+    throw new ApiError(
+      await readErrorMessage(res, 'Não foi possível abrir o ingresso'),
+      res.status,
+    );
+  }
+  const body = (await res.json()) as { ticket: Ticket };
+  return body.ticket;
+}
+
 export async function scanEvent(
   eventId: string,
   code: string,

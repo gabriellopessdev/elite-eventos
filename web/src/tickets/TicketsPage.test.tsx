@@ -270,6 +270,18 @@ describe('TicketsPage', () => {
     expect(screen.getByText('384 291')).toBeTruthy();
     expect(screen.queryByText('t1.sig')).toBeNull();
 
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      clipboard: { writeText },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compartilhar' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/t/t1.sig`);
+    });
+    expect(await screen.findByText('Link copiado')).toBeTruthy();
+
     fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
     expect(screen.queryByRole('dialog')).toBeNull();
 
