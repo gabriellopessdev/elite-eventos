@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { EmptyNotice, ErrorNotice } from '../chrome/states';
 import { formatSessionWhen, listMyTickets, type Ticket } from '../events/api';
+import { sessionDay } from '../events/session-day';
 import {
   btn,
   chipActive,
@@ -48,26 +49,35 @@ export function TicketsPage() {
   const [attempt, setAttempt] = useState(0);
   const [sessionFilter, setSessionFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [dateFilter, setDateFilter] = useState('');
 
   /** Uma opção por sessão que a pessoa realmente tem ingresso. */
   const sessionOptions = useMemo(() => {
     const byId = new Map<string, string>();
     for (const ticket of tickets ?? []) {
       if (byId.has(ticket.eventId)) continue;
+      const startsAt = ticket.event?.startsAt;
+      if (dateFilter && (!startsAt || sessionDay(startsAt) !== dateFilter)) continue;
       const title = ticket.event?.title ?? 'Sessão';
-      const when = ticket.event?.startsAt ? ` · ${formatSessionWhen(ticket.event.startsAt)}` : '';
+      const when = startsAt ? ` · ${formatSessionWhen(startsAt)}` : '';
       byId.set(ticket.eventId, `${title}${when}`);
     }
     return [...byId.entries()].map(([id, label]) => ({ id, label }));
-  }, [tickets]);
+  }, [tickets, dateFilter]);
+
+  if (sessionFilter && !sessionOptions.some((option) => option.id === sessionFilter)) {
+    setSessionFilter('');
+  }
 
   const visible = useMemo(() => {
     return (tickets ?? []).filter((ticket) => {
+      const startsAt = ticket.event?.startsAt;
+      if (dateFilter && (!startsAt || sessionDay(startsAt) !== dateFilter)) return false;
       if (sessionFilter && ticket.eventId !== sessionFilter) return false;
       if (statusFilter !== 'ALL' && ticket.status !== statusFilter) return false;
       return true;
     });
-  }, [tickets, sessionFilter, statusFilter]);
+  }, [tickets, dateFilter, sessionFilter, statusFilter]);
 
   const retry = useCallback(() => {
     setError(null);
@@ -134,22 +144,38 @@ export function TicketsPage() {
               Filtros
             </h2>
 
-            <label className={`grid gap-1.5 ${fieldLabel}`} htmlFor="ticket-session">
-              Sessão
-              <select
-                id="ticket-session"
-                className={`${fieldInput} font-normal`}
-                value={sessionFilter}
-                onChange={(e) => setSessionFilter(e.target.value)}
+            <div className="grid gap-3 sm:grid-cols-4">
+              <label className={`grid gap-1.5 sm:col-span-1 ${fieldLabel}`} htmlFor="ticket-date">
+                Data
+                <input
+                  id="ticket-date"
+                  type="date"
+                  className={`${fieldInput} font-normal`}
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                />
+              </label>
+
+              <label
+                className={`grid gap-1.5 sm:col-span-3 ${fieldLabel}`}
+                htmlFor="ticket-session"
               >
-                <option value="">Todas as sessões</option>
-                {sessionOptions.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                Sessão
+                <select
+                  id="ticket-session"
+                  className={`${fieldInput} font-normal`}
+                  value={sessionFilter}
+                  onChange={(e) => setSessionFilter(e.target.value)}
+                >
+                  <option value="">Todas as sessões</option>
+                  {sessionOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
             <div className="grid gap-1.5">
               <span className={fieldLabel}>Status</span>
@@ -175,7 +201,7 @@ export function TicketsPage() {
             </p>
           ) : (
             <TicketStubbook
-              key={`${sessionFilter}-${statusFilter}`}
+              key={`${dateFilter}-${sessionFilter}-${statusFilter}`}
               tickets={visible}
               onTicketReturned={() => setAttempt((n) => n + 1)}
             />

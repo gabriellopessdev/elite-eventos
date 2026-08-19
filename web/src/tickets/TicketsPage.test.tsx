@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 import type { Ticket } from '../events/api';
+import { sessionDay } from '../events/session-day';
 
 function seedCustomer() {
   localStorage.setItem(
@@ -181,6 +182,37 @@ describe('TicketsPage', () => {
     // Um recorte sem nenhum ingresso diz isso em vez de sumir com tudo.
     fireEvent.change(screen.getByLabelText('Sessão'), { target: { value: 'evt-oppen' } });
     expect(screen.getByText(/Nenhum ingresso bate com os filtros/i)).toBeTruthy();
+  });
+
+  it('filtra por data, encolhe o select e zera sessão órfã', async () => {
+    seedCustomer();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ tickets: ticketsFixture }),
+      }),
+    );
+
+    renderAt('/tickets');
+    await screen.findByRole('button', { name: /Duna/ });
+
+    const sessionSelect = screen.getByLabelText('Sessão') as HTMLSelectElement;
+    expect([...sessionSelect.options].map((o) => o.value)).toEqual(['', 'evt-dune', 'evt-oppen']);
+
+    fireEvent.change(sessionSelect, { target: { value: 'evt-oppen' } });
+    expect(screen.getByText('Assento C5')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Data'), {
+      target: { value: sessionDay(ticketsFixture[0].event!.startsAt) },
+    });
+
+    const narrowed = screen.getByLabelText('Sessão') as HTMLSelectElement;
+    expect(narrowed.value).toBe('');
+    expect([...narrowed.options].map((o) => o.value)).toEqual(['', 'evt-dune']);
+    expect(screen.getByRole('button', { name: /Duna/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Oppenheimer/ })).toBeNull();
   });
 
   it('filtra expirados e esconde no chip Não usados', async () => {

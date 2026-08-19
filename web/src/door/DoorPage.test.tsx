@@ -5,7 +5,7 @@ import { App } from '../App';
 import * as api from '../events/api';
 import { ApiError, type EventSummary } from '../events/api';
 import type { Role } from '../auth/auth';
-import { sessionDay } from './DoorPage';
+import { sessionDay } from '../events/session-day';
 
 const duna: EventSummary = {
   id: 'evt-dune',
