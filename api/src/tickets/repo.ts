@@ -1,4 +1,4 @@
-import { TicketStatus } from '@prisma/client';
+import { SeatStatus, TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
 import { SESSION_SCAN_GRACE_MS } from '../events/session-window.js';
 import { isTicketPin } from './pin.js';
@@ -113,5 +113,67 @@ export async function getTicketByShareCode(code: string) {
   return prisma.ticket.findUnique({
     where: { id: ticketId },
     select: shareTicketSelect,
+  });
+}
+
+export class TicketReturnNotFoundError extends Error {
+  constructor() {
+    super('Ticket not found');
+    this.name = 'TicketReturnNotFoundError';
+  }
+}
+
+export class TicketReturnConflictError extends Error {
+  constructor() {
+    super('Ticket cannot be returned');
+    this.name = 'TicketReturnConflictError';
+  }
+}
+
+export async function returnTicket({
+  ticketId,
+  userId,
+  now = new Date(),
+}: {
+  ticketId: string;
+  userId: string;
+  now?: Date;
+}) {
+  await expireTicketsPastWindow(now);
+
+  return prisma.$transaction(async (tx) => {
+    const ticket = await tx.ticket.findUnique({
+      where: { id: ticketId },
+      include: { event: { select: { startsAt: true } } },
+    });
+
+    if (!ticket || ticket.userId !== userId) {
+      throw new TicketReturnNotFoundError();
+    }
+
+    if (ticket.status !== TicketStatus.UNUSED || ticket.event.startsAt.getTime() <= now.getTime()) {
+      throw new TicketReturnConflictError();
+    }
+
+    const deleted = await tx.ticket.deleteMany({
+      where: {
+        id: ticketId,
+        userId,
+        status: TicketStatus.UNUSED,
+        event: { startsAt: { gt: now } },
+      },
+    });
+    if (deleted.count !== 1) {
+      throw new TicketReturnConflictError();
+    }
+
+    await tx.seat.update({
+      where: { id: ticket.seatId },
+      data: {
+        status: SeatStatus.AVAILABLE,
+        heldById: null,
+        heldUntil: null,
+      },
+    });
   });
 }
