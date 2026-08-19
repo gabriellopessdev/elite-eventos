@@ -102,9 +102,24 @@ async function tryCustomerAuth(request: FastifyRequest) {
   }
 }
 
+/** Optional Bearer: invalid/missing → null (GET /events never 401). Only DOOR yields claims. */
+async function tryDoorAuth(request: FastifyRequest) {
+  const header = request.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return null;
+  const token = header.slice('Bearer '.length).trim();
+  try {
+    const claims = await verifyAccessToken(token);
+    if (claims.role !== Role.DOOR) return null;
+    return claims;
+  } catch {
+    return null;
+  }
+}
+
 export async function eventRoutes(app: FastifyInstance) {
-  app.get('/events', async () => {
-    const events = await listEvents();
+  app.get('/events', async (request) => {
+    const door = await tryDoorAuth(request);
+    const events = await listEvents({ includeStarted: Boolean(door) });
     return { events };
   });
 

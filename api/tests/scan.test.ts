@@ -5,6 +5,7 @@ import { EventStatus, Role, SeatStatus, TicketStatus } from '@prisma/client';
 import { buildApp } from '../src/app.js';
 import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/auth/password.js';
+import { SESSION_SCAN_GRACE_MS } from '../src/events/session-window.js';
 import { signTicketId } from '../src/tickets/qr.js';
 import { randomTicketPin } from '../src/tickets/pin.js';
 
@@ -249,5 +250,54 @@ describe('POST /events/:id/scan', () => {
       outcome: 'valid',
       seat: { row: seat.row, number: seat.number },
     });
+  });
+
+  test('UNUSED HMAC on session past scan window → 200 expired', async () => {
+    const event = await createSession();
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { startsAt: new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000) },
+    });
+    const { code } = await issueTicket({
+      eventId: event.id,
+      seatId: event.seats[0]!.id,
+    });
+
+    const res = await postScan(event.id, doorToken, { code });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ outcome: 'expired' });
+  });
+
+  test('UNUSED PIN on session past scan window → 200 expired', async () => {
+    const event = await createSession();
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { startsAt: new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000) },
+    });
+    const { ticket } = await issueTicket({
+      eventId: event.id,
+      seatId: event.seats[0]!.id,
+    });
+
+    const res = await postScan(event.id, doorToken, { code: ticket.pin });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ outcome: 'expired' });
+  });
+
+  test('USED ticket on session past scan window → 200 used', async () => {
+    const event = await createSession();
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { startsAt: new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000) },
+    });
+    const { code } = await issueTicket({
+      eventId: event.id,
+      seatId: event.seats[0]!.id,
+      status: TicketStatus.USED,
+    });
+
+    const res = await postScan(event.id, doorToken, { code });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ outcome: 'used' });
   });
 });
