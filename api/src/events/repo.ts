@@ -3,6 +3,7 @@ import { EventStatus, Prisma, SeatStatus, TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
 import { allocateTicketPins } from '../tickets/pin.js';
 import { signTicketId } from '../tickets/qr.js';
+import { listStartsAfter } from './session-window.js';
 
 /** Same 8×10 as the decorative home map. Hold/lock is slice 3. */
 export const SEAT_ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const;
@@ -101,9 +102,13 @@ export async function createEvent(input: CreateEventInput) {
 }
 
 /** Catalog of sessions — published only, no seat rows. The map is getEvent. */
-export async function listEvents() {
+export async function listEvents(opts?: { now?: Date; includeStarted?: boolean }) {
+  const now = opts?.now ?? new Date();
   return prisma.event.findMany({
-    where: { status: EventStatus.PUBLISHED },
+    where: {
+      status: EventStatus.PUBLISHED,
+      startsAt: { gt: listStartsAfter(now, Boolean(opts?.includeStarted)) },
+    },
     orderBy: { startsAt: 'asc' },
   });
 }
