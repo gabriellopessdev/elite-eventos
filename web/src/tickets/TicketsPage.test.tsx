@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 import type { Ticket } from '../events/api';
@@ -311,5 +311,87 @@ describe('TicketsPage', () => {
     const trigger = await screen.findByRole('button', { name: /Duna/ });
     expect(trigger.querySelector('img')).toBeNull();
     expect(trigger.querySelector('[data-testid="poster-placeholder"]')).toBeTruthy();
+  });
+
+  it('UNUSED futuro: Devolver no passe pede confirm e some o talão', async () => {
+    seedCustomer();
+    let tickets = ticketsFixture;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? 'GET').toUpperCase();
+      if (method === 'DELETE' && url.includes('/tickets/t1')) {
+        expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer access-customer');
+        tickets = ticketsFixture.filter((t) => t.id !== 't1');
+        return { ok: true, status: 204, json: async () => ({}) };
+      }
+      if (url.includes('/tickets') && method === 'GET' && !url.includes('/tickets/pass/')) {
+        return { ok: true, status: 200, json: async () => ({ tickets }) };
+      }
+      return { ok: false, status: 500, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('/tickets');
+    fireEvent.click(await screen.findByRole('button', { name: /Assento A1/ }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Devolver ingresso' }));
+    const confirm = await screen.findByRole('alertdialog');
+    expect(screen.getByText('O assento volta ao mapa. Esta ação não pode ser desfeita.')).toBeTruthy();
+
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Manter ingresso' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit)?.method === 'DELETE')).toBe(
+      false,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Devolver ingresso' }));
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Devolver ingresso' }),
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByRole('button', { name: /Assento A1/ })).toBeNull();
+    });
+    expect(screen.getByRole('button', { name: /Assento A2/ })).toBeTruthy();
+  });
+
+  it('USED não mostra Devolver; 409 deixa o passe aberto com alerta', async () => {
+    seedCustomer();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if ((init?.method ?? 'GET').toUpperCase() === 'DELETE') {
+        return {
+          ok: false,
+          status: 409,
+          json: async () => ({ message: 'Ticket cannot be returned' }),
+        };
+      }
+      if (url.includes('/tickets')) {
+        return { ok: true, status: 200, json: async () => ({ tickets: ticketsFixture }) };
+      }
+      return { ok: false, status: 500, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('/tickets');
+    fireEvent.click(await screen.findByRole('button', { name: /Assento A2/ }));
+    expect(await screen.findByText('102 938')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Devolver ingresso' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Assento A1/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Devolver ingresso' }));
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Devolver ingresso' }),
+    );
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Este ingresso não pode ser devolvido.',
+    );
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Assento A1/ })).toBeTruthy();
   });
 });
