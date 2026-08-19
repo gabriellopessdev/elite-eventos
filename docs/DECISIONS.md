@@ -98,7 +98,9 @@ stateDiagram-v2
 - Scan: `SESSION_SCAN_GRACE_MS = 3 * 60 * 60 * 1000`. `UNUSED` cujo `startsAt + 3h <= now` vira `EXPIRED` (lazy). `USED` não muda. Assento permanece `SOLD`.
 - `GET /events` + Bearer `DOOR` válido: `PUBLISHED` e `startsAt > now - 3h`. Token inválido, ausente ou de outro papel → janela de venda. Este GET nunca devolve 401.
 - Scan 200 `{ outcome: 'expired' }` na ordem: `invalid` → `wrong_event` → `used` → `expired` → `valid`. PIN de outra sessão continua `invalid`.
-- Relógio ≠ archive: `ARCHIVED` ainda 404 no scan.
+- Relógio ≠ archive: `ARCHIVED` ainda 404 no scan. `POST /archive` na URL direta continua válido depois do `startsAt`.
+- Cartaz / Próximas sessões: sessão com `startsAt` passado **não aparece**, inclusive com Bearer `ORGANIZER`. Encerrar pelo cartaz não é o caminho; listar e arquivar sessão passada fica no **painel do organizador** (ADR-008 Depois) — fora deste MVP.
+- Carteira: `GET /tickets` lista o ingresso mesmo `EXPIRED` (chip Expirados). Não depende do cartaz.
 - Cancel (7b) só `UNUSED` de sessão futura — fora desta fatia.
-**Consequências:** `TicketStatus` ganha `EXPIRED`. Sem job/cron nesta fatia (lazy). Sem `endsAt` no Event.
-**Alternativas:** cortar venda e scan no mesmo `startsAt` (rejeitado — fila da porta depois do horário); 404 no hold (rejeitado — a sessão existe, só não vende).
+**Consequências:** `TicketStatus` ganha `EXPIRED`. Sem job/cron nesta fatia (lazy). Sem `endsAt` no Event. Sem catálogo extra de org no `GET /events`.
+**Alternativas:** cortar venda e scan no mesmo `startsAt` (rejeitado — fila da porta depois do horário); 404 no hold (rejeitado — a sessão existe, só não vende); `GET /events` + Bearer ORGANIZER incluir sessão passada para Encerrar (rejeitado neste MVP — painel org, ADR-008).
