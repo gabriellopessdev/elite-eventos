@@ -8,6 +8,7 @@ import { EventsPage } from './events/EventsPage';
 import { EventPage } from './events/EventPage';
 import { NewEventPage } from './events/NewEventPage';
 import { TicketsPage } from './tickets/TicketsPage';
+import { TicketPassPage } from './tickets/TicketPassPage';
 import { DoorPage } from './door/DoorPage';
 
 function RoleHome() {
@@ -19,6 +20,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/t/:code" element={<TicketPassPage />} />
       <Route element={<Shell />}>
         {/* A raiz manda cada papel para a casa dele — cartaz, ou portaria. */}
         <Route path="/" element={<RoleHome />} />
