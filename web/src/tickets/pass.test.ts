@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatTicketPin, shareTicketPass, ticketShareUrl } from './pass';
+import { canReturnTicket, formatTicketPin, shareTicketPass, ticketShareUrl } from './pass';
 
 describe('ticket pass helpers', () => {
   afterEach(() => {
@@ -40,5 +40,35 @@ describe('ticket pass helpers', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     await expect(shareTicketPass('https://x/t/a.b')).resolves.toBe('copied');
     expect(writeText).toHaveBeenCalledWith('https://x/t/a.b');
+  });
+});
+
+const base = {
+  id: 't1',
+  eventId: 'e1',
+  seatId: 's1',
+  code: 't1.sig',
+  pin: '384291',
+  createdAt: '2026-08-17T12:00:00.000Z',
+  event: { id: 'e1', title: 'Duna', posterPath: null, startsAt: '2026-10-01T20:00:00.000Z' },
+  seat: { row: 'A', number: 1 },
+} as const;
+
+describe('canReturnTicket', () => {
+  const now = Date.parse('2026-09-01T00:00:00.000Z');
+
+  it('UNUSED futuro → true', () => {
+    expect(canReturnTicket({ ...base, status: 'UNUSED' }, now)).toBe(true);
+  });
+
+  it('USED, EXPIRED ou startsAt passado → false', () => {
+    expect(canReturnTicket({ ...base, status: 'USED' }, now)).toBe(false);
+    expect(canReturnTicket({ ...base, status: 'EXPIRED' }, now)).toBe(false);
+    expect(
+      canReturnTicket(
+        { ...base, status: 'UNUSED', event: { ...base.event, startsAt: '2026-08-01T20:00:00.000Z' } },
+        now,
+      ),
+    ).toBe(false);
   });
 });

@@ -204,6 +204,21 @@ export async function listMyTickets(accessToken: string): Promise<Ticket[]> {
   return body.tickets;
 }
 
+export async function returnTicket(ticketId: string, accessToken: string): Promise<void> {
+  const res = await apiFetch(`/tickets/${ticketId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 204 || res.status === 404) return;
+  if (res.status === 409) {
+    throw new ApiError('Este ingresso não pode ser devolvido.', 409);
+  }
+  throw new ApiError(
+    await readErrorMessage(res, 'Não foi possível devolver o ingresso'),
+    res.status,
+  );
+}
+
 export async function getSharedTicket(code: string): Promise<Ticket> {
   const res = await apiFetch(`/tickets/pass/${code}`);
   if (res.status === 404) {
