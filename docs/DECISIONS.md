@@ -13,7 +13,7 @@
 **Contexto:** evitar double-sell e dar tempo de checkout.  
 **Decisão:** `available → held (held_by, held_until) → sold`; `UPDATE … WHERE status='available'`; TTL **10 min**; front mostra countdown a partir de `held_until`. Timer UI não é fonte da verdade.  
 **Consequências:** precisa liberar expirados (lazy no acesso + job leve).  
-**Produção:** Redis lock, WS, filas — documentar no README.
+**Produção:** Redis lock, WS, filas — documentar no README. MVP do mapa = polling (ADR-014), não WebSocket.
 
 ```mermaid
 stateDiagram-v2
@@ -134,5 +134,18 @@ stateDiagram-v2
 - HTTP: `DELETE /tickets/:id`, `requireRole(CUSTOMER)`. **204** vazio. Não é dono / id morto → **404** `{ message: 'Ticket not found' }` idênticos. `USED` / `EXPIRED` / sessão passada / corrida com scan → **409** `{ message: 'Ticket cannot be returned' }`.
 - Atômico: `deleteMany` `UNUSED` + dono + `startsAt > now`; `count !== 1` → 409. Só então `Seat` `AVAILABLE`.
 - Web: botão **Devolver ingresso** só no modal do passe da carteira, só se `canReturnTicket`. `ConfirmDialog`: “Devolver este ingresso?” / “O assento volta ao mapa. Esta ação não pode ser desfeita.” / Devolver ingresso / Manter ingresso. 204 ou 404 → fecha e a lista some sozinha (`GET /tickets`). 409 → alerta no passe. `/t/:code` sem Devolver. Sem toast.
-**Consequências:** HMAC/PIN mortos caem em 404/`invalid` (não vazam “cancelado”). Checkout pode emitir ingresso novo no mesmo assento. Polling do mapa é a fatia seguinte.
+**Consequências:** HMAC/PIN mortos caem em 404/`invalid` (não vazam “cancelado”). Checkout pode emitir ingresso novo no mesmo assento. Espelho do mapa para outros clientes = ADR-014.
 **Alternativas:** status `CANCELED` + `seatId` nullable (rejeitado — audit de dinheiro que não existe); estorno (rejeitado — sem pagamento); botão na listagem (rejeitado — botão aninhado no talão).
+
+## ADR-014 — Mapa: polling, não WebSocket
+
+**Status:** accepted  
+**Contexto:** fatia #8 (2026-08-19). O lock atômico e o TTL já estão no servidor (ADR-002); quem abre o cartaz só via o hold/sold do outro no F5. O ROADMAP escreveu “polling→WS”: fechar o comportamento com o GET que já existe; canal em tempo real é opcional depois.  
+**Decisão:**
+- Espelho do estoque = **polling** de `GET /events/:id` no cartaz da sessão, com a aba visível e `startsAt > now`. Intervalo ~2–3 s. Sem endpoint novo.
+- **Sem WebSocket** neste MVP: sem `@fastify/websocket`, sem Socket.IO, sem sala por `eventId`.
+- O poll **mergeia** `seats` (e `myHold` se ainda for do cliente). Não zera o estado, não mostra skeleton, não bump `attempt`/`retry`.
+- Expire lazy no GET continua sendo o gatilho do TTL: o hold morto some no próximo poll. WS não resolveria expire sozinho — exigiria fan-out em hold, checkout, soltar hold, expire e devolver (ADR-013), mais JWT no handshake, reconnect e um GET no enter mesmo assim.
+- Atraso de poucos segundos é o “Done quando…” da fatia: outros veem hold. Double-sell continua impossível no `UPDATE … WHERE status='available'`, não no transporte.
+**Consequências:** mais GETs enquanto o mapa está aberto; escala do desafio cabe. WS permanece na nota de produção do ADR-002 se o intervalo virar custo ou o atraso deixar de ser aceitável. Busca e painel org continuam depois desta fatia.
+**Alternativas:** WebSocket agora (rejeitado — superfície nova sem mudar o lock nem o JSON); SSE (mesmo ciclo de vida de conexão, ganho menor); sem poll (rejeitado — a fatia 8 não fecha).
