@@ -177,6 +177,8 @@ function EventSession({ id }: { id: string }) {
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  /** Relógio do mount — `Date.now()` no render quebra `react-hooks/purity`. */
+  const [nowMs] = useState(() => Date.now());
   /** Um hold só é liberado uma vez, mesmo passando por expirar e depois fechar. */
   const releasedRef = useRef(false);
 
@@ -389,7 +391,7 @@ function EventSession({ id }: { id: string }) {
 
   const poster = posterUrl(event.posterPath, 'w500');
   const selectedSet = new Set(selectedIds);
-  const onSale = new Date(event.startsAt).getTime() > Date.now();
+  const onSale = new Date(event.startsAt).getTime() > nowMs;
   const canPay = selectedIds.length >= 1 && selectedIds.length <= MAX_SEATS && !paying;
   const heldSeats = event.seats.filter((seat) => selectedIds.includes(seat.id));
   const isOwner =
