@@ -93,3 +93,25 @@ export async function listTicketsForUser(userId: string) {
     },
   });
 }
+
+const shareTicketSelect = {
+  id: true,
+  eventId: true,
+  seatId: true,
+  code: true,
+  pin: true,
+  status: true,
+  createdAt: true,
+  event: { select: { id: true, title: true, posterPath: true, startsAt: true } },
+  seat: { select: { row: true, number: true } },
+} as const;
+
+export async function getTicketByShareCode(code: string) {
+  await expireTicketsPastWindow();
+  const ticketId = verifyTicketCode(code.trim());
+  if (!ticketId) return null;
+  return prisma.ticket.findUnique({
+    where: { id: ticketId },
+    select: shareTicketSelect,
+  });
+}
