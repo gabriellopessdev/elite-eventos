@@ -71,6 +71,7 @@ type SeatMapProps = {
   seats: Seat[];
   selectedIds: Set<string>;
   onToggle: (seat: Seat) => void;
+  interactive?: boolean;
 };
 
 function LegendKey({ tone, children }: { tone: string; children: string }) {
@@ -82,7 +83,7 @@ function LegendKey({ tone, children }: { tone: string; children: string }) {
   );
 }
 
-function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
+function SeatMap({ seats, selectedIds, onToggle, interactive = true }: SeatMapProps) {
   const rows = seatsByRow(seats);
 
   return (
@@ -90,7 +91,7 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
       <div className="grid w-full max-w-lg justify-items-center gap-1.5">
         <div className="h-2 w-full rounded-t-[50%] bg-linear-to-b from-lavender/65 to-transparent" />
         <span className="text-[11px] font-bold tracking-[0.14em] text-faint uppercase">
-          Selecione os assentos
+          {interactive ? 'Selecione os assentos' : 'Mapa da sessão'}
         </span>
       </div>
 
@@ -110,7 +111,7 @@ function SeatMap({ seats, selectedIds, onToggle }: SeatMapProps) {
                   }`;
                   const tone = selected ? seatTone.selected : statusTone[seat.status];
 
-                  if (!selectable) {
+                  if (!interactive || !selectable) {
                     return (
                       <span
                         key={seat.id}
@@ -176,6 +177,8 @@ function EventSession({ id }: { id: string }) {
   const [archiving, setArchiving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  /** Relógio do mount — `Date.now()` no render quebra `react-hooks/purity`. */
+  const [nowMs] = useState(() => Date.now());
   /** Um hold só é liberado uma vez, mesmo passando por expirar e depois fechar. */
   const releasedRef = useRef(false);
 
@@ -208,7 +211,7 @@ function EventSession({ id }: { id: string }) {
           setSelectedIds([]);
         }
 
-        if (next.myHold && role === 'CUSTOMER') {
+        if (next.myHold && role === 'CUSTOMER' && new Date(next.startsAt).getTime() > Date.now()) {
           setSelectedIds(next.myHold.seatIds);
           setHeldUntil(next.myHold.heldUntil);
           setCheckoutOpen(true);
@@ -224,6 +227,7 @@ function EventSession({ id }: { id: string }) {
   }, [id, accessToken, role, attempt]);
 
   function toggleSeat(seat: Seat) {
+    if (!event || new Date(event.startsAt).getTime() <= Date.now()) return;
     if (seat.status !== 'AVAILABLE') return;
     setActionError(null);
     setSelectedIds((prev) => {
@@ -234,6 +238,7 @@ function EventSession({ id }: { id: string }) {
   }
 
   async function onPay() {
+    if (!event || new Date(event.startsAt).getTime() <= Date.now()) return;
     if (selectedIds.length < 1 || selectedIds.length > MAX_SEATS) return;
     setActionError(null);
 
@@ -382,6 +387,7 @@ function EventSession({ id }: { id: string }) {
 
   const poster = posterUrl(event.posterPath, 'w500');
   const selectedSet = new Set(selectedIds);
+  const onSale = new Date(event.startsAt).getTime() > nowMs;
   const canPay = selectedIds.length >= 1 && selectedIds.length <= MAX_SEATS && !paying;
   const heldSeats = event.seats.filter((seat) => selectedIds.includes(seat.id));
   const isOwner =
@@ -391,7 +397,11 @@ function EventSession({ id }: { id: string }) {
     <CinemaStage contentClassName="items-start justify-center">
       {/* min-w-0 em toda a cadeia: um item de grid/flex cresce até o conteúdo
           por padrão, e sem isso a sala vaza da tela em vez de rolar. */}
-      <article className="mx-auto grid w-full max-w-6xl min-w-0 gap-8 pb-52 md:grid-cols-[minmax(0,17rem)_1fr] md:items-start md:gap-12 md:pb-24">
+      <article
+        className={`mx-auto grid w-full max-w-6xl min-w-0 gap-8 md:grid-cols-[minmax(0,17rem)_1fr] md:items-start md:gap-12 ${
+          onSale ? 'pb-52 md:pb-24' : 'pb-8'
+        }`}
+      >
         <div className="grid gap-4 md:sticky md:top-28">
           <Link
             className={`${btnQuiet} justify-self-start`}
@@ -417,7 +427,7 @@ function EventSession({ id }: { id: string }) {
             )}
 
             <div className="grid justify-items-start gap-2">
-              <span className={pill}>Em cartaz</span>
+              <span className={pill}>{onSale ? 'Em cartaz' : 'Fora de venda'}</span>
               <h1 className="m-0 text-2xl font-extrabold tracking-tight md:text-3xl">
                 {event.title}
               </h1>
@@ -445,7 +455,12 @@ function EventSession({ id }: { id: string }) {
         </div>
 
         <div className="grid justify-items-center gap-5">
-          <SeatMap seats={event.seats} selectedIds={selectedSet} onToggle={toggleSeat} />
+          <SeatMap
+            seats={event.seats}
+            selectedIds={selectedSet}
+            onToggle={toggleSeat}
+            interactive={onSale}
+          />
           {actionError ? (
             <p className={`m-0 ${hintError}`} role="alert">
               {actionError}
@@ -457,39 +472,41 @@ function EventSession({ id }: { id: string }) {
       {/* Resumo fixo: a contagem e o total acompanham o dedo em vez de ficarem
           acima da dobra, atrás do mapa. No mobile ele se apoia na tab bar (4rem
           + safe area) em vez de disputar o mesmo rodapé. */}
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-md md:bottom-4 md:mx-auto md:max-w-3xl md:rounded-2xl md:border md:px-6">
-        <div className="mx-auto grid max-w-6xl gap-3 md:flex md:items-center md:justify-between md:gap-8">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:justify-start">
-            <span className="text-[13px] whitespace-nowrap text-muted">
-              {selectedIds.length} de {MAX_SEATS} assentos
-            </span>
-            <span className="flex flex-wrap justify-end gap-1.5">
-              {heldSeats.map((seat) => (
-                <span key={seat.id} className={badgeNeutral}>
-                  {seat.row}
-                  {seat.number}
-                </span>
-              ))}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="grid md:justify-items-end">
-              <span className="text-[13px] text-faint">Total</span>
-              <span className="text-xl font-extrabold tabular-nums">
-                {formatPrice(event.priceCents * selectedIds.length)}
+      {onSale ? (
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur-md md:bottom-4 md:mx-auto md:max-w-3xl md:rounded-2xl md:border md:px-6">
+          <div className="mx-auto grid max-w-6xl gap-3 md:flex md:items-center md:justify-between md:gap-8">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 md:justify-start">
+              <span className="text-[13px] whitespace-nowrap text-muted">
+                {selectedIds.length} de {MAX_SEATS} assentos
               </span>
-            </span>
-            <button
-              type="button"
-              className={`${btn} min-h-13 shrink-0 px-5 text-base md:px-6`}
-              disabled={!canPay}
-              onClick={() => void onPay()}
-            >
-              {paying ? 'Reservando…' : 'Reservar e pagar'}
-            </button>
+              <span className="flex flex-wrap justify-end gap-1.5">
+                {heldSeats.map((seat) => (
+                  <span key={seat.id} className={badgeNeutral}>
+                    {seat.row}
+                    {seat.number}
+                  </span>
+                ))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <span className="grid md:justify-items-end">
+                <span className="text-[13px] text-faint">Total</span>
+                <span className="text-xl font-extrabold tabular-nums">
+                  {formatPrice(event.priceCents * selectedIds.length)}
+                </span>
+              </span>
+              <button
+                type="button"
+                className={`${btn} min-h-13 shrink-0 px-5 text-base md:px-6`}
+                disabled={!canPay}
+                onClick={() => void onPay()}
+              >
+                {paying ? 'Reservando…' : 'Reservar e pagar'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       <ConfirmDialog
         open={confirmArchive}

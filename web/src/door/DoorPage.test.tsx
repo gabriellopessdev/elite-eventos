@@ -188,6 +188,21 @@ describe('portaria /door', () => {
     expect((await screen.findByRole('status')).textContent).toBe('Já utilizado');
   });
 
+  it('ingresso expirado mostra Expirado', async () => {
+    seedRole('DOOR', 'Portaria Demo');
+    vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);
+    vi.spyOn(api, 'scanEvent').mockResolvedValue({ outcome: 'expired' });
+    renderAt('/door');
+    await screen.findByRole('button', { name: /Duna/ });
+
+    fireEvent.click(screen.getByRole('button', { name: /Duna/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Digitar o código' }));
+    fireEvent.change(screen.getByLabelText('Código de 6 dígitos'), { target: { value: '384291' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Validar' }));
+
+    expect((await screen.findByRole('status')).textContent).toBe('Expirado');
+  });
+
   it('trocar a sessão limpa a faixa de resultado', async () => {
     seedRole('DOOR', 'Portaria Demo');
     vi.spyOn(api, 'listEvents').mockResolvedValue([duna, oppenheimer]);

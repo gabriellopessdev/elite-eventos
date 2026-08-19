@@ -13,6 +13,7 @@ function formatTicketPin(pin: string) {
 const statusLabel: Record<Ticket['status'], string> = {
   UNUSED: 'Não usado',
   USED: 'Usado',
+  EXPIRED: 'Expirado',
 };
 
 function TicketQr({ code, used }: { code: string; used: boolean }) {
@@ -54,7 +55,7 @@ export type TicketPassModalProps = {
 /** QR (HMAC) + PIN de 6 dígitos. Overlay fecha: o passe é só leitura. */
 export function TicketPassModal({ ticket, onClose }: TicketPassModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
-  const used = ticket.status === 'USED';
+  const used = ticket.status === 'USED' || ticket.status === 'EXPIRED';
   const seat = ticket.seat ? `${ticket.seat.row}${ticket.seat.number}` : '—';
   const pin = formatTicketPin(ticket.pin);
 

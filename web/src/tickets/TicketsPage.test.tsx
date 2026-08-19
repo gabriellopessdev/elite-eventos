@@ -93,6 +93,22 @@ const ticketsFixture: Ticket[] = [
     },
     seat: { row: 'C', number: 5 },
   },
+  {
+    id: 't4',
+    eventId: 'evt-dune',
+    seatId: 'seat-2',
+    code: 't4.sig',
+    pin: '777000',
+    status: 'EXPIRED',
+    createdAt: '2026-08-17T12:02:00.000Z',
+    event: {
+      id: 'evt-dune',
+      title: 'Duna',
+      posterPath: '/dune.jpg',
+      startsAt: '2026-10-01T20:00:00.000Z',
+    },
+    seat: { row: 'A', number: 3 },
+  },
 ];
 
 describe('TicketsPage', () => {
@@ -167,6 +183,32 @@ describe('TicketsPage', () => {
     expect(screen.getByText(/Nenhum ingresso bate com os filtros/i)).toBeTruthy();
   });
 
+  it('filtra expirados e esconde no chip Não usados', async () => {
+    seedCustomer();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ tickets: ticketsFixture }),
+      }),
+    );
+
+    renderAt('/tickets');
+    await screen.findByRole('button', { name: /Duna/ });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expirados' }));
+    expect(screen.getByText('Assento A3')).toBeTruthy();
+    expect(screen.queryByText('Assento A1')).toBeNull();
+    expect(screen.queryByText('Assento A2')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Oppenheimer/ })).toBeNull();
+    expect(screen.getByText('Expirado')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Não usados' }));
+    expect(screen.queryByText('Assento A3')).toBeNull();
+    expect(screen.getByText('Assento A1')).toBeTruthy();
+  });
+
   it('cliente vê resumo dobrado e abre uma sessão por vez', async () => {
     seedCustomer();
     vi.stubGlobal(
@@ -188,7 +230,7 @@ describe('TicketsPage', () => {
     expect(screen.getByText('Assento A1')).toBeTruthy();
     expect(screen.getByText('Assento A2')).toBeTruthy();
     expect(screen.queryByText('Assento C5')).toBeNull();
-    expect(screen.getByText(/2 ingressos/)).toBeTruthy();
+    expect(screen.getByText(/3 ingressos/)).toBeTruthy();
     expect(screen.getByText(/1 ingresso/)).toBeTruthy();
 
     fireEvent.click(oppenTrigger);

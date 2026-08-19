@@ -46,6 +46,8 @@ function outcomeCopy(result: ScanResult): string {
       return 'Já utilizado';
     case 'wrong_event':
       return 'Sessão errada';
+    case 'expired':
+      return 'Expirado';
   }
 }
 
@@ -57,6 +59,7 @@ function outcomeCopy(result: ScanResult): string {
 const outcomeTone: Record<ScanOutcome, string> = {
   valid: 'bg-success text-[#06251a]',
   used: 'bg-warn text-[#2a1c00]',
+  expired: 'bg-warn text-[#2a1c00]',
   invalid: 'bg-danger text-[#3a0a0a]',
   wrong_event: 'border border-line-strong bg-surface-high text-danger',
 };
@@ -64,13 +67,15 @@ const outcomeTone: Record<ScanOutcome, string> = {
 const outcomeDot: Record<ScanOutcome, string> = {
   valid: 'bg-success',
   used: 'bg-warn',
+  expired: 'bg-warn',
   invalid: 'bg-danger',
   wrong_event: 'bg-danger',
 };
 
 function OutcomeIcon({ outcome }: { outcome: ScanOutcome }) {
   if (outcome === 'valid') return <CheckIcon size={32} strokeWidth={2.5} />;
-  if (outcome === 'used') return <ClockIcon size={32} strokeWidth={2.25} />;
+  if (outcome === 'used' || outcome === 'expired')
+    return <ClockIcon size={32} strokeWidth={2.25} />;
   if (outcome === 'invalid') return <CloseIcon size={32} strokeWidth={2.25} />;
   return <AlertIcon size={32} strokeWidth={2.25} />;
 }
@@ -133,9 +138,9 @@ export function DoorPage() {
   }, [result]);
 
   useEffect(() => {
-    if (session?.user.role !== 'DOOR') return;
+    if (!session || session.user.role !== 'DOOR') return;
     let cancelled = false;
-    listEvents()
+    listEvents(session.accessToken)
       .then((next) => {
         if (!cancelled) {
           setEvents(next);

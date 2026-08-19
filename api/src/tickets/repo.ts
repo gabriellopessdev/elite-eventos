@@ -1,9 +1,10 @@
 import { TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
+import { SESSION_SCAN_GRACE_MS } from '../events/session-window.js';
 import { isTicketPin } from './pin.js';
 import { verifyTicketCode } from './qr.js';
 
-export type ScanOutcome = 'valid' | 'invalid' | 'used' | 'wrong_event';
+export type ScanOutcome = 'valid' | 'invalid' | 'used' | 'wrong_event' | 'expired';
 
 export type ScanResult = {
   outcome: ScanOutcome;
@@ -17,6 +18,17 @@ type TicketWithSeat = {
   seat: { row: string; number: number };
 };
 
+export async function expireTicketsPastWindow(now = new Date()) {
+  const cutoff = new Date(now.getTime() - SESSION_SCAN_GRACE_MS);
+  return prisma.ticket.updateMany({
+    where: {
+      status: TicketStatus.UNUSED,
+      event: { startsAt: { lte: cutoff } },
+    },
+    data: { status: TicketStatus.EXPIRED },
+  });
+}
+
 export async function scanTicket({
   eventId,
   code,
@@ -25,6 +37,7 @@ export async function scanTicket({
   code: string;
 }): Promise<ScanResult> {
   const trimmed = code.trim();
+  await expireTicketsPastWindow();
 
   if (isTicketPin(trimmed)) {
     const ticket = await prisma.ticket.findUnique({
@@ -50,12 +63,17 @@ export async function scanTicket({
 
 async function consumeScannedTicket(ticket: TicketWithSeat): Promise<ScanResult> {
   if (ticket.status === TicketStatus.USED) return { outcome: 'used' };
+  if (ticket.status === TicketStatus.EXPIRED) return { outcome: 'expired' };
 
   const updated = await prisma.ticket.updateMany({
     where: { id: ticket.id, eventId: ticket.eventId, status: TicketStatus.UNUSED },
     data: { status: TicketStatus.USED },
   });
-  if (updated.count !== 1) return { outcome: 'used' };
+  if (updated.count !== 1) {
+    const latest = await prisma.ticket.findUnique({ where: { id: ticket.id } });
+    if (latest?.status === TicketStatus.EXPIRED) return { outcome: 'expired' };
+    return { outcome: 'used' };
+  }
 
   return {
     outcome: 'valid',
@@ -65,6 +83,7 @@ async function consumeScannedTicket(ticket: TicketWithSeat): Promise<ScanResult>
 
 /** Customer's tickets, newest first — event + seat for /tickets grouping. */
 export async function listTicketsForUser(userId: string) {
+  await expireTicketsPastWindow();
   return prisma.ticket.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },

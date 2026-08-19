@@ -260,6 +260,28 @@ describe('hold API', () => {
     expect(get.statusCode).toBe(404);
   });
 
+  test('sessão com startsAt passado → hold 400, GET 200, archive 200', async () => {
+    const event = await createSession();
+    await prisma.event.update({
+      where: { id: event.id },
+      data: { startsAt: new Date(Date.now() - 60_000) },
+    });
+
+    const hold = await postHold(event.id, customer1Token, [event.seats[0]!.id]);
+    expect(hold.statusCode).toBe(400);
+    expect(hold.json().message).toBe('Session is no longer on sale');
+
+    const get = await getEvent(event.id);
+    expect(get.statusCode).toBe(200);
+
+    const archived = await app.inject({
+      method: 'POST',
+      url: `/events/${event.id}/archive`,
+      headers: { authorization: `Bearer ${orgToken}` },
+    });
+    expect(archived.statusCode).toBe(200);
+  });
+
   test('seatIds vazio → 400', async () => {
     const event = await createSession();
     const res = await postHold(event.id, customer1Token, []);
