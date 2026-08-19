@@ -3,6 +3,7 @@ import { EventStatus, Prisma, SeatStatus, TicketStatus } from '@prisma/client';
 import { prisma } from '../db.js';
 import { allocateTicketPins } from '../tickets/pin.js';
 import { signTicketId } from '../tickets/qr.js';
+import { expireTicketsPastWindow } from '../tickets/repo.js';
 import { listStartsAfter, saleOpen } from './session-window.js';
 
 /** Same 8×10 as the decorative home map. Hold/lock is slice 3. */
@@ -223,6 +224,7 @@ export async function releaseHold({ eventId, userId }: { eventId: string; userId
  */
 export async function getPublishedEvent(id: string) {
   await releaseExpiredSeats();
+  await expireTicketsPastWindow();
   const event = await prisma.event.findUnique({
     where: { id },
     include: seatInclude,

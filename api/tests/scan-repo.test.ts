@@ -4,6 +4,7 @@ import { Role, SeatStatus, TicketStatus } from '@prisma/client';
 import { prisma } from '../src/db.js';
 import { hashPassword } from '../src/auth/password.js';
 import { createEvent } from '../src/events/repo.js';
+import { SESSION_SCAN_GRACE_MS } from '../src/events/session-window.js';
 import { signTicketId } from '../src/tickets/qr.js';
 import { randomTicketPin } from '../src/tickets/pin.js';
 import { scanTicket } from '../src/tickets/repo.js';
@@ -55,12 +56,12 @@ describe('tickets/repo scanTicket', () => {
     await prisma.event.deleteMany({ where: { organizerId } });
   }
 
-  async function seedSession(title: string) {
+  async function seedSession(title: string, startsAt = new Date('2026-11-01T20:00:00.000Z')) {
     return createEvent({
       tmdbId: 1,
       title,
       posterPath: null,
-      startsAt: new Date('2026-11-01T20:00:00.000Z'),
+      startsAt,
       priceCents: 2000,
       organizerId,
     });
@@ -219,5 +220,101 @@ describe('tickets/repo scanTicket', () => {
     expect(await scanTicket({ eventId: sessionA.id, code: '000000' })).toEqual({
       outcome: 'invalid',
     });
+  });
+
+  test('UNUSED HMAC on session past scan window → expired; seat stays SOLD', async () => {
+    const startsAt = new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000);
+    const session = await seedSession('Expired HMAC', startsAt);
+    const seat = session.seats[0]!;
+    const { ticket, code } = await issueTicket({
+      eventId: session.id,
+      seatId: seat.id,
+    });
+
+    const result = await scanTicket({ eventId: session.id, code });
+    expect(result).toEqual({ outcome: 'expired' });
+
+    const inDb = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(inDb.status).toBe(TicketStatus.EXPIRED);
+    const seatInDb = await prisma.seat.findUniqueOrThrow({ where: { id: seat.id } });
+    expect(seatInDb.status).toBe(SeatStatus.SOLD);
+  });
+
+  test('USED HMAC on session past scan window → used (does not become EXPIRED)', async () => {
+    const startsAt = new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000);
+    const session = await seedSession('Expired USED', startsAt);
+    const { ticket, code } = await issueTicket({
+      eventId: session.id,
+      seatId: session.seats[0]!.id,
+      status: TicketStatus.USED,
+    });
+
+    const result = await scanTicket({ eventId: session.id, code });
+    expect(result).toEqual({ outcome: 'used' });
+
+    const inDb = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(inDb.status).toBe(TicketStatus.USED);
+  });
+
+  test('6-digit PIN on session past scan window → expired', async () => {
+    const startsAt = new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000);
+    const session = await seedSession('Expired PIN', startsAt);
+    const { ticket } = await issueTicket({
+      eventId: session.id,
+      seatId: session.seats[0]!.id,
+      pin: '384292',
+    });
+
+    const result = await scanTicket({ eventId: session.id, code: ticket.pin });
+    expect(result).toEqual({ outcome: 'expired' });
+  });
+
+  test('HMAC of expired session B scanned on future session A → wrong_event', async () => {
+    const sessionA = await seedSession('Scan A future', new Date(Date.now() + 60 * 60 * 1000));
+    const sessionB = await seedSession(
+      'Scan B expired',
+      new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000),
+    );
+    const { code } = await issueTicket({
+      eventId: sessionB.id,
+      seatId: sessionB.seats[0]!.id,
+    });
+
+    const result = await scanTicket({ eventId: sessionA.id, code });
+    expect(result).toEqual({ outcome: 'wrong_event' });
+  });
+
+  test('PIN of expired session B on future session A → invalid', async () => {
+    const sessionA = await seedSession('Scan A PIN', new Date(Date.now() + 60 * 60 * 1000));
+    const sessionB = await seedSession(
+      'Scan B PIN expired',
+      new Date(Date.now() - SESSION_SCAN_GRACE_MS - 60_000),
+    );
+    const { ticket } = await issueTicket({
+      eventId: sessionB.id,
+      seatId: sessionB.seats[0]!.id,
+      pin: '384293',
+    });
+
+    const result = await scanTicket({ eventId: sessionA.id, code: ticket.pin });
+    expect(result).toEqual({ outcome: 'invalid' });
+  });
+
+  test('UNUSED HMAC on session started 1 min ago (scanOpen) → valid and becomes USED', async () => {
+    const session = await seedSession('Started 1 min', new Date(Date.now() - 60_000));
+    const seat = session.seats[0]!;
+    const { ticket, code } = await issueTicket({
+      eventId: session.id,
+      seatId: seat.id,
+    });
+
+    const result = await scanTicket({ eventId: session.id, code });
+    expect(result).toEqual({
+      outcome: 'valid',
+      seat: { row: seat.row, number: seat.number },
+    });
+
+    const inDb = await prisma.ticket.findUniqueOrThrow({ where: { id: ticket.id } });
+    expect(inDb.status).toBe(TicketStatus.USED);
   });
 });
