@@ -367,6 +367,55 @@ describe('detalhe da sessão', () => {
     ).toBeTruthy();
   });
 
+  it('sessão passada fica fora de venda e o mapa não é clicável', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...dune,
+          startsAt: '2020-01-01T20:00:00.000Z',
+          seats: seats([
+            ['A', 1],
+            ['A', 2],
+          ]),
+        }),
+      }),
+    );
+
+    renderAt('/events/evt-dune');
+
+    expect(await screen.findByText('Fora de venda')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reservar e pagar' })).toBeNull();
+    expect(screen.getByLabelText('A1 disponível')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'A1 disponível' })).toBeNull();
+  });
+
+  it('organizador dono ainda vê Encerrar sessão em sessão passada', async () => {
+    seedOrganizer('org-1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...dune,
+          startsAt: '2020-01-01T20:00:00.000Z',
+          seats: seats([
+            ['A', 1],
+            ['A', 2],
+          ]),
+        }),
+      }),
+    );
+
+    renderAt('/events/evt-dune');
+
+    expect(await screen.findByRole('button', { name: 'Encerrar sessão' })).toBeTruthy();
+    expect(screen.getByText('Fora de venda')).toBeTruthy();
+  });
+
   it('sessão inexistente volta ao cartaz', async () => {
     vi.stubGlobal(
       'fetch',
