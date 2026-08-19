@@ -51,7 +51,7 @@ export type Ticket = {
   };
 };
 
-export type ScanOutcome = 'valid' | 'invalid' | 'used' | 'wrong_event';
+export type ScanOutcome = 'valid' | 'invalid' | 'used' | 'wrong_event' | 'expired';
 
 export type ScanResult = {
   outcome: ScanOutcome;
@@ -96,8 +96,10 @@ export function formatSessionWhen(startsAt: string) {
   }).format(new Date(startsAt));
 }
 
-export async function listEvents(): Promise<EventSummary[]> {
-  const res = await apiFetch('/events');
+export async function listEvents(accessToken?: string | null): Promise<EventSummary[]> {
+  const res = await apiFetch('/events', {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  });
   if (!res.ok) {
     throw new ApiError(
       await readErrorMessage(res, 'Não foi possível carregar as sessões'),
