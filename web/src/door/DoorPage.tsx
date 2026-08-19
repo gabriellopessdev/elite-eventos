@@ -74,7 +74,8 @@ const outcomeDot: Record<ScanOutcome, string> = {
 
 function OutcomeIcon({ outcome }: { outcome: ScanOutcome }) {
   if (outcome === 'valid') return <CheckIcon size={32} strokeWidth={2.5} />;
-  if (outcome === 'used' || outcome === 'expired') return <ClockIcon size={32} strokeWidth={2.25} />;
+  if (outcome === 'used' || outcome === 'expired')
+    return <ClockIcon size={32} strokeWidth={2.25} />;
   if (outcome === 'invalid') return <CloseIcon size={32} strokeWidth={2.25} />;
   return <AlertIcon size={32} strokeWidth={2.25} />;
 }

@@ -211,11 +211,7 @@ function EventSession({ id }: { id: string }) {
           setSelectedIds([]);
         }
 
-        if (
-          next.myHold &&
-          role === 'CUSTOMER' &&
-          new Date(next.startsAt).getTime() > Date.now()
-        ) {
+        if (next.myHold && role === 'CUSTOMER' && new Date(next.startsAt).getTime() > Date.now()) {
           setSelectedIds(next.myHold.seatIds);
           setHeldUntil(next.myHold.heldUntil);
           setCheckoutOpen(true);
